@@ -326,6 +326,7 @@ export const ProductsPage = () => {
         onClose={closeModal}
         title={editing ? 'Editar producto' : 'Nuevo producto'}
         size="3xl"
+        stickyFooter
         footer={
           <>
             <Button type="button" variant="ghost" onClick={closeModal} disabled={formLoading}>
