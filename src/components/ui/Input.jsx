@@ -1,0 +1,55 @@
+import { fieldBase, fieldSizes, fieldError, fieldNormal } from './fieldStyles';
+
+export const Input = ({
+  label,
+  hint,
+  error,
+  id,
+  size = 'md',
+  className = '',
+  wrapperClassName = '',
+  icon: Icon,
+  iconPosition = 'left',
+  ...props
+}) => {
+  const sizeClass = fieldSizes[size] || fieldSizes.md;
+  const borderClass = error ? fieldError : fieldNormal;
+  const hasIcon = Boolean(Icon);
+  const paddingClass = hasIcon
+    ? iconPosition === 'left'
+      ? 'pl-11 pr-4'
+      : 'pl-4 pr-11'
+    : 'px-4';
+
+  return (
+    <div className={`w-full min-w-0 ${wrapperClassName}`}>
+      {label && (
+        <label
+          htmlFor={id}
+          className="block text-sm font-medium text-slate-700 mb-2"
+        >
+          {label}
+        </label>
+      )}
+      <div className="relative">
+        {hasIcon && (
+          <Icon
+            className={`absolute top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none ${
+              iconPosition === 'left' ? 'left-4' : 'right-4'
+            }`}
+            aria-hidden
+          />
+        )}
+        <input
+          id={id}
+          className={`${fieldBase} ${sizeClass} ${borderClass} ${paddingClass} ${className}`}
+          {...props}
+        />
+      </div>
+      {hint && !error && (
+        <p className="mt-1.5 text-xs text-slate-500">{hint}</p>
+      )}
+      {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
+    </div>
+  );
+};

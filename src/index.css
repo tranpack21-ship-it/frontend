@@ -1,0 +1,66 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: #fefce8;
+  --color-brand-100: #fef9c3;
+  --color-brand-200: #fef08a;
+  --color-brand-300: #fde047;
+  --color-brand-400: #facc15;
+  --color-brand-500: #eab308;
+  --color-brand-600: #ca8a04;
+  --color-brand-700: #a16207;
+  --color-brand-800: #854d0e;
+  --color-brand-900: #713f12;
+
+  --color-slate-850: #1a2332;
+  --color-slate-950: #0f1419;
+
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html {
+    @apply antialiased scroll-smooth;
+  }
+
+  body {
+    @apply bg-slate-100 text-slate-800 min-h-screen;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply bg-white/90 backdrop-blur-sm border border-slate-200/80 shadow-lg;
+  }
+
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+}
+
+/* Búsqueda: ocultar controles nativos del navegador (usamos botón limpiar propio) */
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #sale-receipt-print,
+  #sale-receipt-print * {
+    visibility: visible;
+  }
+  #sale-receipt-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
