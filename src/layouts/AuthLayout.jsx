@@ -15,15 +15,10 @@ export const AuthLayout = () => {
       <div className="relative z-10">
         <Logo size="lg" theme="light" />
       </div>
-      <div className="relative z-10 space-y-4">
-        <h1 className="text-4xl font-bold text-white leading-tight">
-          Gestión de ventas
-          <span className="text-brand-400"> profesional</span>
+      <div className="relative z-10">
+        <h1 className="text-4xl font-bold text-white leading-tight max-w-md">
+          Sistema de gestión de ventas
         </h1>
-        <p className="text-slate-300 text-lg max-w-md">
-          Plataforma escalable para controlar ventas, inventario, clientes y más.
-          Instalable como aplicación en tu dispositivo.
-        </p>
       </div>
       <p className="relative z-10 text-slate-500 text-sm">
         © {new Date().getFullYear()} Tran-Pack

@@ -89,6 +89,35 @@
     display: none;
   }
 
+  /*
+   * Modal en móvil: top + bottom fijos = altura acotada al área segura.
+   * Evita que max-h-% o dvh invadan la barra de estado en iOS/PWA.
+   */
+  .modal-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
+    bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 640px) {
+    .modal-sheet {
+      position: relative;
+      top: auto;
+      bottom: auto;
+      left: auto;
+      right: auto;
+      max-height: min(
+        90vh,
+        calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem)
+      );
+    }
+  }
+
   /* Shell de app: evita saltos de viewport en Safari iOS al mostrar/ocultar la barra de URL */
   .app-shell {
     position: fixed;
