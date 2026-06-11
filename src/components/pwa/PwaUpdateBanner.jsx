@@ -34,7 +34,7 @@ export const PwaUpdateBanner = () => {
   return (
     <div
       role="alert"
-      className="fixed top-4 left-4 right-4 z-[60] mx-auto max-w-lg rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-lg sm:left-auto sm:right-6"
+      className="fixed z-[60] mx-auto max-w-lg rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-lg left-[max(1rem,env(safe-area-inset-left,0px))] right-[max(1rem,env(safe-area-inset-right,0px))] top-[max(1rem,env(safe-area-inset-top,0px))] sm:left-auto sm:right-[max(1.5rem,env(safe-area-inset-right,0px))]"
     >
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">

@@ -62,9 +62,9 @@ const DashboardShell = () => {
   );
 
   return (
-    <div className="flex h-dvh max-h-dvh overflow-hidden bg-slate-100">
+    <div className="app-shell flex bg-slate-100">
       {/* Sidebar escritorio: fijo, no hace scroll con el contenido */}
-      <aside className="hidden lg:flex fixed inset-y-0 left-0 z-30 w-64 flex-col bg-slate-800 text-white shadow-xl">
+      <aside className="hidden lg:flex fixed inset-y-0 left-0 z-30 w-64 flex-col bg-slate-800 text-white shadow-xl safe-area-top safe-area-bottom">
         <div className="shrink-0 p-6 border-b border-slate-700/50">
           <Logo theme="light" />
         </div>
@@ -82,7 +82,7 @@ const DashboardShell = () => {
             onClick={closeSidebar}
             aria-hidden="true"
           />
-          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-slate-800 text-white shadow-2xl">
+          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-slate-800 text-white shadow-2xl safe-area-top safe-area-bottom safe-area-x">
             <div className="shrink-0 flex items-center justify-between p-4 border-b border-slate-700/50">
               <Logo size="sm" theme="light" />
               <button
@@ -104,42 +104,46 @@ const DashboardShell = () => {
 
       {/* Contenido principal: única zona con scroll */}
       <div className="flex flex-1 flex-col min-w-0 h-full overflow-hidden lg:pl-64">
-        <ConnectionBanner
-          isOnline={connection.isOnline}
-          isOffline={connection.isOffline}
-          isChecking={connection.isChecking}
-          wasOffline={connection.wasOffline}
-          onRefresh={connection.refresh}
-          onAcknowledgeReconnected={connection.acknowledgeReconnected}
-        />
-        <header className="sticky top-0 shrink-0 z-30 flex items-center gap-4 px-4 py-3 bg-white border-b border-slate-200 shadow-sm lg:px-8">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg lg:hidden"
-            aria-label="Abrir menú"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          <div className="lg:hidden">
-            <Logo size="sm" showText={false} />
-          </div>
-          <div className="hidden lg:block flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-800">Tran-Pack</p>
-            <p className="text-xs text-slate-500">Panel de gestión</p>
-          </div>
-          <div className="ml-auto flex items-center gap-3">
-            <NotificationCenter />
-            <Badge
-              variant={user?.rol === 'admin' ? 'admin' : 'empleado'}
-              className="capitalize hidden sm:inline-flex"
+        <div
+          className={`sticky top-0 z-30 shrink-0 safe-area-top ${connection.isOffline ? 'bg-red-600' : 'bg-white'}`}
+        >
+          <ConnectionBanner
+            isOnline={connection.isOnline}
+            isOffline={connection.isOffline}
+            isChecking={connection.isChecking}
+            wasOffline={connection.wasOffline}
+            onRefresh={connection.refresh}
+            onAcknowledgeReconnected={connection.acknowledgeReconnected}
+          />
+          <header className="flex items-center gap-4 px-4 py-3 bg-white border-b border-slate-200 shadow-sm lg:px-8 safe-area-x">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg lg:hidden"
+              aria-label="Abrir menú"
             >
-              {user?.rol}
-            </Badge>
-          </div>
-        </header>
+              <Menu className="w-6 h-6" />
+            </button>
+            <div className="lg:hidden">
+              <Logo size="sm" showText={false} />
+            </div>
+            <div className="hidden lg:block flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-800">Tran-Pack</p>
+              <p className="text-xs text-slate-500">Panel de gestión</p>
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              <NotificationCenter />
+              <Badge
+                variant={user?.rol === 'admin' ? 'admin' : 'empleado'}
+                className="capitalize hidden sm:inline-flex"
+              >
+                {user?.rol}
+              </Badge>
+            </div>
+          </header>
+        </div>
 
-        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:p-6 sm:pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] lg:p-8 lg:pb-[max(2rem,env(safe-area-inset-bottom,0px))] safe-area-x">
           <AppErrorBoundary resetKey={location.pathname} compact showLogo={false}>
             <Outlet />
           </AppErrorBoundary>

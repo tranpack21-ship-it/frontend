@@ -21,14 +21,18 @@
 @layer base {
   html {
     @apply antialiased scroll-smooth;
+    height: -webkit-fill-available;
   }
 
   body {
-    @apply bg-slate-100 text-slate-800 min-h-screen;
+    @apply bg-slate-100 text-slate-800;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
   }
 
   #root {
-    @apply min-h-screen;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
   }
 }
 
@@ -39,6 +43,29 @@
 
   .touch-manipulation {
     touch-action: manipulation;
+  }
+
+  /* Área segura iOS / PWA (notch, barra de estado, home indicator) */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-area-x {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Shell de app: evita saltos de viewport en Safari iOS al mostrar/ocultar la barra de URL */
+  .app-shell {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 }
 
