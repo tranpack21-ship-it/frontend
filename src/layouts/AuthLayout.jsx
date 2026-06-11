@@ -6,7 +6,7 @@ export const AuthLayout = () => {
   const location = useLocation();
 
   return (
-  <div className="min-h-dvh min-h-[100dvh] flex flex-col lg:flex-row safe-area-x">
+  <div className="min-h-dvh min-h-[100dvh] flex flex-col lg:flex-row">
     <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-800 via-slate-850 to-slate-950 p-12 flex-col justify-between relative overflow-hidden">
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-20 left-20 w-72 h-72 bg-brand-400 rounded-full blur-3xl" />

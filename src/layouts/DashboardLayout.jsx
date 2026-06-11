@@ -82,7 +82,7 @@ const DashboardShell = () => {
             onClick={closeSidebar}
             aria-hidden="true"
           />
-          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-slate-800 text-white shadow-2xl safe-area-top safe-area-bottom safe-area-x">
+          <aside className="relative flex h-full w-72 max-w-[85vw] flex-col bg-slate-800 text-white shadow-2xl safe-area-top safe-area-bottom pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
             <div className="shrink-0 flex items-center justify-between p-4 border-b border-slate-700/50">
               <Logo size="sm" theme="light" />
               <button
@@ -115,7 +115,7 @@ const DashboardShell = () => {
             onRefresh={connection.refresh}
             onAcknowledgeReconnected={connection.acknowledgeReconnected}
           />
-          <header className="flex items-center gap-4 px-4 py-3 bg-white border-b border-slate-200 shadow-sm lg:px-8 safe-area-x">
+          <header className="flex items-center gap-4 py-3 bg-white border-b border-slate-200 shadow-sm page-padding-x">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
@@ -143,7 +143,7 @@ const DashboardShell = () => {
           </header>
         </div>
 
-        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:p-6 sm:pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] lg:p-8 lg:pb-[max(2rem,env(safe-area-inset-bottom,0px))] safe-area-x">
+        <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y pt-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:pt-6 sm:pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] lg:pt-8 lg:pb-[max(2rem,env(safe-area-inset-bottom,0px))] page-padding-x">
           <AppErrorBoundary resetKey={location.pathname} compact showLogo={false}>
             <Outlet />
           </AppErrorBoundary>

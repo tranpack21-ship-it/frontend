@@ -54,9 +54,39 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  /* Solo el inset del dispositivo (usar en overlays fijos, no junto con px-*) */
   .safe-area-x {
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Padding horizontal de página + área segura (no pisa px-4 de Tailwind) */
+  .page-padding-x {
+    padding-left: calc(1rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(1rem + env(safe-area-inset-right, 0px));
+  }
+
+  @media (min-width: 640px) {
+    .page-padding-x {
+      padding-left: calc(1.5rem + env(safe-area-inset-left, 0px));
+      padding-right: calc(1.5rem + env(safe-area-inset-right, 0px));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-padding-x {
+      padding-left: calc(2rem + env(safe-area-inset-left, 0px));
+      padding-right: calc(2rem + env(safe-area-inset-right, 0px));
+    }
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 
   /* Shell de app: evita saltos de viewport en Safari iOS al mostrar/ocultar la barra de URL */

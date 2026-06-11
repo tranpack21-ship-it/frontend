@@ -11,9 +11,9 @@ export const SaleMobileCheckoutBar = ({
   onRegisterPayment,
 }) => (
   <div
-    className="lg:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(15,23,42,0.12)] safe-area-x pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
+    className="lg:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-md shadow-[0_-8px_30px_rgba(15,23,42,0.12)] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
   >
-    <div className="px-4 pt-3 pb-1 max-w-7xl mx-auto">
+    <div className="page-padding-x pt-3 pb-1 max-w-7xl mx-auto">
       <div className="flex items-end justify-between gap-3 mb-3">
         <div className="min-w-0 flex-1">
           <p className="text-xs text-slate-500 uppercase tracking-wide">Total</p>
