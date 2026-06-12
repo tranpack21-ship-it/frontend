@@ -32,4 +32,9 @@ export const productService = {
     const { data } = await api.patch(`/products/${id}/deactivate`);
     return data.data.producto;
   },
+
+  remove: async (id) => {
+    const { data } = await api.delete(`/products/${id}`);
+    return data.data;
+  },
 };

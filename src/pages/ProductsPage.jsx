@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Pencil, PackageX, Package } from 'lucide-react';
+import { Plus, Pencil, PackageX, Package, Trash2, RotateCcw } from 'lucide-react';
 import { productService } from '../services/productService';
 import { categoryService } from '../services/categoryService';
 import { useDebounce } from '../hooks/useDebounce';
@@ -33,7 +33,7 @@ export const ProductsPage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState('todos');
+  const [showInactive, setShowInactive] = useState(false);
   const [categoriaFilter, setCategoriaFilter] = useState('');
   const debouncedSearch = useDebounce(search);
   const [modalOpen, setModalOpen] = useState(false);
@@ -48,10 +48,13 @@ export const ProductsPage = () => {
   }, []);
 
   const listParams = useMemo(() => {
-    const params = { search: debouncedSearch, estado: estadoFilter };
+    const params = {
+      search: debouncedSearch,
+      estado: showInactive ? 'inactivo' : 'activo',
+    };
     if (categoriaFilter) params.categoria_id = categoriaFilter;
     return params;
-  }, [debouncedSearch, estadoFilter, categoriaFilter]);
+  }, [debouncedSearch, showInactive, categoriaFilter]);
 
   const {
     items: products,
@@ -81,6 +84,7 @@ export const ProductsPage = () => {
   const openEdit = (prod) => {
     setEditing({
       id: prod.id,
+      stockActual: prod.stock,
       values: {
         codigo: prod.codigo || '',
         nombre: prod.nombre,
@@ -94,7 +98,6 @@ export const ProductsPage = () => {
         precio_venta_paquete: prod.precio_venta_paquete ?? 0,
         unidades_por_paquete: prod.unidades_por_paquete ?? 1,
         precio_costo: prod.precio_costo,
-        stock: prod.stock,
         stock_minimo: prod.stock_minimo,
         unidad_medida: prod.unidad_medida,
         estado: prod.estado,
@@ -146,6 +149,35 @@ export const ProductsPage = () => {
     }
   };
 
+  const handleDelete = async (prod) => {
+    if (
+      !window.confirm(
+        `¿Eliminar permanentemente "${prod.nombre}"?\n\nEsta acción no se puede deshacer. Solo es posible si el producto no tiene ventas asociadas.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await productService.remove(prod.id);
+      setSuccess('Producto eliminado de la base de datos');
+      refresh();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  };
+
+  const handleReactivate = async (prod) => {
+    if (!window.confirm(`¿Reactivar el producto "${prod.nombre}"?`)) return;
+    try {
+      await productService.update(prod.id, { estado: 'activo' });
+      setSuccess('Producto reactivado');
+      setShowInactive(false);
+      refresh();
+    } catch (err) {
+      setError(getErrorMessage(err));
+    }
+  };
+
   const categoriaOptions = [
     { value: '', label: 'Todas las categorías' },
     ...categories.map((c) => ({ value: c.id, label: c.nombre })),
@@ -160,7 +192,7 @@ export const ProductsPage = () => {
             Productos
           </h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            Catálogo de productos, precios y stock inicial
+            Catálogo de productos y precios — el stock se gestiona en Inventario
           </p>
         </div>
         {canCreate && (
@@ -206,20 +238,19 @@ export const ProductsPage = () => {
                 onChange={(e) => setCategoriaFilter(e.target.value)}
                 options={categoriaOptions}
               />,
-              <Select
-                key="estado"
-                id="filtro-estado-prod"
-                label="Estado"
-                size="lg"
-                hidePlaceholder
-                value={estadoFilter}
-                onChange={(e) => setEstadoFilter(e.target.value)}
-                options={[
-                  { value: 'todos', label: 'Todos' },
-                  { value: 'activo', label: 'Activos' },
-                  { value: 'inactivo', label: 'Inactivos' },
-                ]}
-              />,
+              <div key="inactivos" className="flex items-end pb-1">
+                <label className="inline-flex items-center gap-2.5 cursor-pointer select-none min-h-[42px] px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+                    checked={showInactive}
+                    onChange={(e) => setShowInactive(e.target.checked)}
+                  />
+                  <span className="text-sm font-medium text-slate-700 whitespace-nowrap">
+                    Mostrar inactivos
+                  </span>
+                </label>
+              </div>,
             ]}
           />
         </div>
@@ -229,8 +260,12 @@ export const ProductsPage = () => {
             <Spinner />
           ) : products.length === 0 ? (
             <EmptyState
-              title="No hay productos"
-              description="Registre productos en su catálogo de ventas"
+              title={showInactive ? 'Sin productos inactivos' : 'No hay productos'}
+              description={
+                showInactive
+                  ? 'Los productos desactivados aparecerán aquí'
+                  : 'Registre productos en su catálogo de ventas'
+              }
             />
           ) : (
             <>
@@ -287,18 +322,57 @@ export const ProductsPage = () => {
                           <Badge variant={prod.estado}>{prod.estado}</Badge>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-1">
                             {canEdit && (
-                              <Button variant="ghost" size="sm" onClick={() => openEdit(prod)}>
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {canDeactivate && prod.estado === 'activo' && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="!text-red-600 hover:!bg-red-50"
+                                onClick={() => openEdit(prod)}
+                                title="Editar"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {canEdit && prod.estado === 'inactivo' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="!text-emerald-700 hover:!bg-emerald-50"
+                                onClick={() => handleReactivate(prod)}
+                                title="Reactivar"
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {canDeactivate && prod.puede_eliminar && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="!text-red-700 hover:!bg-red-50"
+                                onClick={() => handleDelete(prod)}
+                                title="Eliminar permanentemente"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {canDeactivate && prod.estado === 'activo' && !prod.puede_eliminar && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="!text-amber-700 hover:!bg-amber-50"
                                 onClick={() => handleDeactivate(prod)}
+                                title="Desactivar (tiene ventas asociadas)"
+                              >
+                                <PackageX className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {canDeactivate && prod.estado === 'activo' && prod.puede_eliminar && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="!text-slate-500 hover:!bg-slate-100"
+                                onClick={() => handleDeactivate(prod)}
+                                title="Desactivar"
                               >
                                 <PackageX className="w-4 h-4" />
                               </Button>
@@ -351,6 +425,7 @@ export const ProductsPage = () => {
           categories={categories}
           onCategoryCreated={handleCategoryCreated}
           defaultValues={editing?.values}
+          stockActual={editing?.stockActual ?? null}
           onSubmit={handleSubmit}
         />
       </Modal>

@@ -7,22 +7,71 @@ const tipoNombre = {
   boleta: 'boleta',
 };
 
+const DEFAULT_COUNTRY_CODE = '54';
+
+export const isMobileDevice = () =>
+  typeof navigator !== 'undefined' &&
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+/** Datos mínimos del listado para abrir WhatsApp sin esperar la API. */
+export const buildQuickReceiptData = (receipt) => ({
+  comprobante: {
+    numero: receipt.numero,
+    tipo: receipt.tipo || 'ticket',
+  },
+  venta: {
+    numero: receipt.venta_numero,
+    total: receipt.venta_total,
+    cliente_nombre: receipt.cliente_nombre,
+  },
+});
+
 /**
- * Normaliza teléfono a formato internacional para wa.me (sin +).
- * Por defecto asume Argentina (54) si no trae código de país.
+ * Inserta el "9" de móvil argentino si falta (54 + 10 dígitos → 549 + 10 dígitos).
  */
-export const normalizePhoneForWhatsApp = (phone, defaultCountryCode = '54') => {
+const fixArgentinaMobilePrefix = (digits) => {
+  if (!digits.startsWith('54') || digits.startsWith('549')) return digits;
+
+  const local = digits.slice(2);
+  if (local.length === 10) {
+    return `549${local}`;
+  }
+
+  return digits;
+};
+
+/**
+ * Normaliza teléfono a formato internacional para WhatsApp (solo dígitos, sin +).
+ */
+export const normalizePhoneForWhatsApp = (phone, defaultCountryCode = DEFAULT_COUNTRY_CODE) => {
   let digits = String(phone || '').replace(/\D/g, '');
   if (!digits) return '';
 
   if (digits.startsWith('00')) digits = digits.slice(2);
-  if (digits.startsWith('0')) digits = digits.slice(1);
+
+  if (digits.startsWith('549') && digits.length >= 12) {
+    return digits;
+  }
+
+  if (digits.startsWith('54')) {
+    return fixArgentinaMobilePrefix(digits);
+  }
+
+  while (digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+
+  digits = digits.replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2');
+
+  if (digits.startsWith('15') && digits.length > 8) {
+    digits = digits.slice(2);
+  }
 
   if (defaultCountryCode && !digits.startsWith(defaultCountryCode)) {
     digits = `${defaultCountryCode}${digits}`;
   }
 
-  return digits;
+  return fixArgentinaMobilePrefix(digits);
 };
 
 export const buildReceiptWhatsAppMessage = (data, { includeAttachHint = false } = {}) => {
@@ -44,53 +93,77 @@ export const buildReceiptWhatsAppMessage = (data, { includeAttachHint = false } 
   ];
 
   if (includeAttachHint) {
-    lines.push('', '_Por favor adjunte el comprobante PDF en este chat._');
+    lines.push('', '_Adjunte el comprobante PDF que se descargó en su dispositivo._');
   }
 
   return lines.join('\n');
 };
 
-export const openWhatsAppChat = (phone, message) => {
+/**
+ * URL oficial (mismo formato que api.whatsapp.com/send/?phone=...&text=...).
+ * En PC muestra la página intermedia; en móvil permite abrir la app.
+ */
+export const buildWhatsAppSendUrl = (phone, message) => {
   const normalized = normalizePhoneForWhatsApp(phone);
   if (!normalized) {
     throw new Error('Número de teléfono inválido');
   }
 
-  const url = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
-  window.open(url, '_blank', 'noopener,noreferrer');
+  const params = new URLSearchParams();
+  params.set('phone', normalized);
+  params.set('text', message);
+
+  return `https://api.whatsapp.com/send/?${params.toString()}`;
 };
 
 /**
- * Genera PDF y abre WhatsApp (Web o app según dispositivo).
- * En móvil intenta compartir el PDF directamente; en escritorio descarga el PDF y abre el chat.
+ * Abre URL externa de forma compatible con PWA y bloqueadores de popups.
+ * Debe invocarse de forma síncrona dentro del onClick del usuario.
  */
-export const shareReceiptViaWhatsApp = async ({ receiptData, phone }) => {
-  const { blob, filename } = await generateReceiptPdfBlob(receiptData);
-  const file = new File([blob], filename, { type: 'application/pdf' });
-  const message = buildReceiptWhatsAppMessage(receiptData);
+export const openExternalUrl = (url) => {
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.referrerPolicy = 'no-referrer';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
 
-  if (
-    typeof navigator !== 'undefined' &&
-    typeof navigator.share === 'function' &&
-    typeof navigator.canShare === 'function' &&
-    navigator.canShare({ files: [file] })
-  ) {
-    try {
-      await navigator.share({
-        files: [file],
-        text: message,
-        title: `Comprobante ${receiptData.comprobante.numero} — Tran-Pack`,
-      });
-      return { method: 'native_share' };
-    } catch (err) {
-      if (err?.name === 'AbortError') {
-        return { method: 'cancelled' };
-      }
-    }
+/**
+ * Abre WhatsApp con teléfono y mensaje precargados.
+ * PC → nueva pestaña con WhatsApp Web / página intermedia.
+ * Móvil → navegador o app (sin reemplazar la PWA con location.assign).
+ */
+export const openWhatsAppChat = (phone, message) => {
+  const url = buildWhatsAppSendUrl(phone, message);
+  openExternalUrl(url);
+};
+
+const resolvePhone = (phone, receiptData) =>
+  phone?.trim() || receiptData?.venta?.cliente_telefono?.trim() || '';
+
+export const assertValidWhatsAppPhone = (phone, receiptData = null) => {
+  const resolvedPhone = resolvePhone(phone, receiptData);
+  if (!resolvedPhone) {
+    throw new Error('El cliente no tiene teléfono registrado');
   }
 
+  const normalized = normalizePhoneForWhatsApp(resolvedPhone);
+  if (!normalized || normalized.length < 10) {
+    throw new Error(
+      'El teléfono del cliente no es válido para WhatsApp. Revise el número en la ficha del cliente.'
+    );
+  }
+
+  return { resolvedPhone, normalized };
+};
+
+/** Genera y descarga el PDF del comprobante (puede correr después de abrir WhatsApp). */
+export const downloadReceiptPdfForShare = async (receiptData) => {
+  assertValidWhatsAppPhone(null, receiptData);
+  const { blob, filename } = await generateReceiptPdfBlob(receiptData);
   downloadBlob(blob, filename);
-  const chatMessage = buildReceiptWhatsAppMessage(receiptData, { includeAttachHint: true });
-  openWhatsAppChat(phone, chatMessage);
-  return { method: 'download_and_whatsapp' };
+  return { filename };
 };

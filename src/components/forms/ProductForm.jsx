@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Package } from 'lucide-react';
 import { Input } from '../ui/Input';
+import { formatNumber } from '../../utils/formatCurrency';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Select } from '../ui/Select';
 import { CategoryPicker } from '../catalog/CategoryPicker';
@@ -15,6 +18,7 @@ export const ProductForm = ({
   categories = [],
   onCategoryCreated,
   defaultValues,
+  stockActual = null,
   onSubmit,
 }) => {
   const {
@@ -39,7 +43,6 @@ export const ProductForm = ({
       precio_venta_paquete: 0,
       unidades_por_paquete: 1,
       precio_costo: 0,
-      stock: 0,
       stock_minimo: 0,
       unidad_medida: 'unidad',
       estado: 'activo',
@@ -258,24 +261,41 @@ export const ProductForm = ({
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <Input
-              id="stock"
-              label="Stock"
-              type="number"
-              step="0.001"
-              min="0"
-              size="md"
-              error={errors.stock?.message}
-              {...register('stock')}
-            />
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-sm text-slate-700">
+                <Package className="w-4 h-4 text-slate-500 shrink-0" />
+                <span>
+                  Stock actual:{' '}
+                  <strong className="tabular-nums text-slate-900">
+                    {stockActual != null
+                      ? formatNumber(stockActual, 2)
+                      : '0 (nuevo producto)'}
+                  </strong>
+                  {unidadMedida ? ` ${unidadMedida}` : ''}
+                </span>
+              </div>
+              <Link
+                to="/catalogo/inventario"
+                className="text-xs font-medium text-brand-700 hover:text-brand-800 underline underline-offset-2"
+              >
+                Ajustar en Inventario
+              </Link>
+            </div>
+            <p className="text-xs text-slate-500">
+              El stock solo se modifica desde Inventario (entradas, salidas o ajustes).
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <Input
               id="stock_minimo"
-              label="Stock mín."
+              label="Stock mínimo (alerta)"
               type="number"
               step="0.001"
               min="0"
               size="md"
+              hint="Umbral para avisos de stock bajo"
               error={errors.stock_minimo?.message}
               {...register('stock_minimo')}
             />
@@ -308,7 +328,7 @@ export const ProductForm = ({
         <div className="xl:sticky xl:top-0 xl:self-start">
           <ProductFormPreview
             key={previewKey}
-            product={watched}
+            product={{ ...watched, stock: stockActual ?? 0 }}
             categoryName={categoryName}
           />
         </div>

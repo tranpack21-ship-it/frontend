@@ -21,7 +21,13 @@ import { TIPOS_COMPROBANTE } from '../constants/permissions';
 import { formatDate } from '../utils/formatDate';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getErrorMessage } from '../utils/getErrorMessage';
-import { shareReceiptViaWhatsApp } from '../utils/shareReceiptWhatsApp';
+import {
+  openWhatsAppChat,
+  buildReceiptWhatsAppMessage,
+  buildQuickReceiptData,
+  assertValidWhatsAppPhone,
+  downloadReceiptPdfForShare,
+} from '../utils/shareReceiptWhatsApp';
 import {
   getDefaultDateRange,
   getPresetRange,
@@ -209,23 +215,28 @@ export const ReceiptsPage = () => {
       return;
     }
 
+    try {
+      assertValidWhatsAppPhone(receipt.cliente_telefono);
+    } catch (err) {
+      setError(getErrorMessage(err));
+      return;
+    }
+
+    const quickMessage = buildReceiptWhatsAppMessage(buildQuickReceiptData(receipt), {
+      includeAttachHint: true,
+    });
+
+    // Abrir WhatsApp de forma síncrona (mismo clic) — evita bloqueo de popups en PC/PWA
+    openWhatsAppChat(receipt.cliente_telefono, quickMessage);
+
     setWhatsappLoadingId(receipt.id);
     try {
       const receiptData = await receiptService.getByVenta(receipt.venta_id);
-      const result = await shareReceiptViaWhatsApp({
-        receiptData,
-        phone: receipt.cliente_telefono,
-      });
+      await downloadReceiptPdfForShare(receiptData);
 
-      if (result.method === 'cancelled') return;
-
-      if (result.method === 'native_share') {
-        setSuccess('Comprobante listo para compartir por WhatsApp.');
-      } else {
-        setSuccess(
-          'PDF descargado y WhatsApp abierto. Adjunte el comprobante en el chat del cliente.'
-        );
-      }
+      setSuccess(
+        'WhatsApp abierto en una nueva pestaña. El PDF se descargó para adjuntarlo al mensaje.'
+      );
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
