@@ -57,6 +57,7 @@ export const ProductForm = ({
   const handleFormSubmit = (data) => {
     onSubmit({
       ...data,
+      codigo: data.codigo || null,
       descripcion: data.descripcion || null,
       imagen_url: data.imagen_url || null,
       color: data.color || null,
@@ -77,7 +78,7 @@ export const ProductForm = ({
           <div className="grid grid-cols-2 gap-3">
             <Input
               id="codigo"
-              label="Código / SKU"
+              label="Código / SKU (opcional)"
               size="md"
               placeholder="PROD-001"
               error={errors.codigo?.message}

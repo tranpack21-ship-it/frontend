@@ -19,7 +19,7 @@ export const ProductFormPreview = ({ product, categoryName }) => {
   } = product;
 
   const displayName = nombre?.trim() || 'Nombre del producto';
-  const displayCode = codigo?.trim() || 'SKU-000';
+  const displayCode = codigo?.trim() || null;
   const price = Number(precio_venta) || 0;
   const stockNum = Number(stock) || 0;
   const stockMin = Number(stock_minimo) || 0;
@@ -52,7 +52,9 @@ export const ProductFormPreview = ({ product, categoryName }) => {
             <ProductImage src={previewProduct.imagen_url} alt={displayName} size="md" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-slate-800 text-sm truncate">{displayName}</p>
-              <p className="text-xs text-slate-500 font-mono mt-0.5">{displayCode}</p>
+              <p className="text-xs text-slate-500 font-mono mt-0.5">
+                {displayCode || <span className="text-slate-400 italic font-sans">Sin código</span>}
+              </p>
               <ProductMetaChips color={color} talle={talle} className="mt-1.5" />
               <p className="text-[11px] text-slate-400 mt-1.5">
                 Stock {formatNumber(stockNum, 0)}
@@ -80,7 +82,9 @@ export const ProductFormPreview = ({ product, categoryName }) => {
               <ProductImage src={previewProduct.imagen_url} alt={displayName} size="xs" />
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-slate-800 text-sm truncate">{displayName}</p>
-                <p className="text-[11px] text-slate-500 font-mono">{displayCode}</p>
+                <p className="text-[11px] text-slate-500 font-mono">
+                  {displayCode || <span className="text-slate-400 italic font-sans">Sin código</span>}
+                </p>
                 <ProductMetaChips color={color} talle={talle} className="mt-1" />
                 {categoryName && (
                   <p className="text-[10px] text-slate-400 mt-1 truncate">{categoryName}</p>

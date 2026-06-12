@@ -82,7 +82,7 @@ export const ProductsPage = () => {
     setEditing({
       id: prod.id,
       values: {
-        codigo: prod.codigo,
+        codigo: prod.codigo || '',
         nombre: prod.nombre,
         descripcion: prod.descripcion || '',
         imagen_url: prod.imagen_url || '',
@@ -255,7 +255,7 @@ export const ProductsPage = () => {
                           <ProductImage src={prod.imagen_url} alt={prod.nombre} size="sm" />
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-slate-600">
-                          {prod.codigo}
+                          {prod.codigo || '—'}
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-slate-800">{prod.nombre}</p>

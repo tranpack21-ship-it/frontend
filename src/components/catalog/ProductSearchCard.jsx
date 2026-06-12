@@ -12,7 +12,9 @@ const ProductDetails = ({ product, priceLabel, footer }) => (
   <>
     <div className="flex-1 min-w-0">
       <p className="font-semibold text-slate-800 leading-tight truncate">{product.nombre}</p>
-      <p className="text-xs text-slate-500 mt-0.5 font-mono">{product.codigo}</p>
+      {product.codigo ? (
+        <p className="text-xs text-slate-500 mt-0.5 font-mono">{product.codigo}</p>
+      ) : null}
       <ProductMetaChips color={product.color} talle={product.talle} className="mt-1.5" />
       {footer}
     </div>

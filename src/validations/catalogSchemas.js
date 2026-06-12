@@ -23,12 +23,20 @@ const optionalShortText = (max) =>
     .optional()
     .transform((v) => (v === '' || v == null ? null : v));
 
+const optionalCodigo = z
+  .union([
+    z.literal(''),
+    z
+      .string()
+      .min(1, 'Mínimo 1 carácter')
+      .max(50)
+      .regex(/^[a-zA-Z0-9._-]+$/, 'Solo letras, números, . _ -'),
+  ])
+  .optional()
+  .transform((v) => (v === '' || v == null ? null : v.trim()));
+
 export const productFormSchema = z.object({
-  codigo: z
-    .string()
-    .min(1, 'El código es obligatorio')
-    .max(50)
-    .regex(/^[a-zA-Z0-9._-]+$/, 'Solo letras, números, . _ -'),
+  codigo: optionalCodigo,
   nombre: z.string().min(2, 'Mínimo 2 caracteres').max(150),
   descripcion: z.string().max(2000).optional().or(z.literal('')),
   imagen_url: optionalUrl,
