@@ -17,6 +17,7 @@ import { Badge } from '../components/ui/Badge';
 import { SaleCartLine } from '../components/commercial/SaleCartLine';
 import { SaleMobileCheckoutBar } from '../components/commercial/SaleMobileCheckoutBar';
 import { SaleCheckoutModal } from '../components/commercial/SaleCheckoutModal';
+import { createPaymentLine } from '../components/commercial/SalePaymentSplitEditor';
 import { ProductSearchCard } from '../components/catalog/ProductSearchCard';
 import { ClientPickerModal } from '../components/commercial/ClientPickerModal';
 import { useDebounce } from '../hooks/useDebounce';
@@ -56,8 +57,8 @@ export const SaleCreatePage = () => {
   const [descuentoGlobal, setDescuentoGlobal] = useState(0);
   const [productSearch, setProductSearch] = useState('');
   const [cart, setCart] = useState([]);
-  const [metodoPago, setMetodoPago] = useState('efectivo');
-  const [montoRecibido, setMontoRecibido] = useState(0);
+  const [splitPayment, setSplitPayment] = useState(false);
+  const [paymentLines, setPaymentLines] = useState([]);
   const [tipoComprobante, setTipoComprobante] = useState('ticket');
   const [stockWarning, setStockWarning] = useState('');
   const debouncedProductSearch = useDebounce(productSearch, 300);
@@ -142,7 +143,17 @@ export const SaleCreatePage = () => {
       if (redo.cliente_id != null) setClienteId(redo.cliente_id);
       if (redo.observaciones) setObservaciones(redo.observaciones);
       if (redo.descuento != null) setDescuentoGlobal(redo.descuento);
-      if (redo.metodo_pago) setMetodoPago(redo.metodo_pago);
+      if (redo.pagos?.length) {
+        setSplitPayment(redo.pagos.length > 1);
+        setPaymentLines(
+          redo.pagos.map((p) =>
+            createPaymentLine(p.metodo_pago, p.monto, p.monto_recibido ?? null)
+          )
+        );
+      } else if (redo.metodo_pago) {
+        setSplitPayment(false);
+        setPaymentLines([createPaymentLine(redo.metodo_pago)]);
+      }
 
       if (redo.items?.length) {
         const itemsWithStock = await Promise.all(
@@ -330,33 +341,83 @@ export const SaleCreatePage = () => {
   );
   const total = Math.max(0, subtotal - descuentoGlobal);
 
-  const selectedPaymentMethod = useMemo(
-    () => paymentMethods.find((m) => m.codigo === metodoPago),
-    [paymentMethods, metodoPago]
+  const methodsByCode = useMemo(
+    () => Object.fromEntries(paymentMethods.map((m) => [m.codigo, m])),
+    [paymentMethods]
   );
 
-  const vuelto =
-    selectedPaymentMethod?.requiere_monto_recibido
-      ? Math.max(0, Number(montoRecibido) - total)
-      : 0;
+  const allocatedPayments = useMemo(
+    () => paymentLines.reduce((acc, line) => acc + (Number(line.monto) || 0), 0),
+    [paymentLines]
+  );
+
+  const paymentBalanced = Math.abs(allocatedPayments - total) < 0.01;
+
+  const hasCuentaCorriente = useMemo(
+    () =>
+      paymentLines.some((line) => methodsByCode[line.metodo_pago]?.genera_cargo_cc),
+    [paymentLines, methodsByCode]
+  );
+
+  const needsClientForPayment = useMemo(
+    () =>
+      paymentLines.some((line) => {
+        const method = methodsByCode[line.metodo_pago];
+        return method?.requiere_cliente || method?.genera_cargo_cc;
+      }),
+    [paymentLines, methodsByCode]
+  );
+
+  const needsCashForSale = useMemo(
+    () =>
+      requiresOpenCash &&
+      paymentLines.some((line) => !methodsByCode[line.metodo_pago]?.genera_cargo_cc),
+    [requiresOpenCash, paymentLines, methodsByCode]
+  );
+
+  const paymentSummaryLabel = useMemo(() => {
+    if (!paymentLines.length) return '—';
+    if (splitPayment) {
+      return paymentLines
+        .map((line) => methodsByCode[line.metodo_pago]?.nombre || line.metodo_pago)
+        .join(' + ');
+    }
+    const line = paymentLines[0];
+    return methodsByCode[line?.metodo_pago]?.nombre || line?.metodo_pago || '—';
+  }, [paymentLines, splitPayment, methodsByCode]);
 
   useEffect(() => {
-    if (defaultMethod?.codigo && !paymentMethodsLoading) {
-      setMetodoPago((prev) => {
-        const stillValid = paymentMethods.some((m) => m.codigo === prev);
-        return stillValid ? prev : defaultMethod.codigo;
-      });
-    }
-  }, [defaultMethod, paymentMethods, paymentMethodsLoading]);
+    if (paymentMethodsLoading || !defaultMethod?.codigo) return;
 
-  useEffect(() => {
-    if (selectedPaymentMethod?.requiere_monto_recibido && total > 0) {
-      setMontoRecibido(total);
-    }
-  }, [total, selectedPaymentMethod?.requiere_monto_recibido]);
-
-  const isCuentaCorriente = Boolean(selectedPaymentMethod?.genera_cargo_cc);
-  const needsCashForSale = requiresOpenCash && Boolean(selectedPaymentMethod?.registra_en_caja);
+    setPaymentLines((prev) => {
+      if (prev.length > 0) {
+        if (!splitPayment && prev.length === 1) {
+          const method = methodsByCode[prev[0].metodo_pago] || defaultMethod;
+          return [
+            {
+              ...prev[0],
+              monto: total,
+              monto_recibido: method.requiere_monto_recibido ? total : null,
+            },
+          ];
+        }
+        return prev;
+      }
+      return [
+        createPaymentLine(
+          defaultMethod.codigo,
+          total,
+          defaultMethod.requiere_monto_recibido ? total : null
+        ),
+      ];
+    });
+  }, [
+    defaultMethod,
+    paymentMethodsLoading,
+    total,
+    splitPayment,
+    methodsByCode,
+  ]);
   const needsCashWarning = needsCashForSale && !cashLoading && !cashSession;
 
   const cuentaCorrienteMethod = useMemo(
@@ -379,11 +440,18 @@ export const SaleCreatePage = () => {
   const handleClienteChange = useCallback(
     (id) => {
       setClienteId(id);
-      if (id && cuentaCorrienteMethod) {
-        setMetodoPago(cuentaCorrienteMethod.codigo);
+      if (id && cuentaCorrienteMethod && !splitPayment) {
+        const method = cuentaCorrienteMethod;
+        setPaymentLines([
+          createPaymentLine(
+            method.codigo,
+            total,
+            method.requiere_monto_recibido ? total : null
+          ),
+        ]);
       }
     },
-    [cuentaCorrienteMethod]
+    [cuentaCorrienteMethod, splitPayment, total]
   );
 
   const handleClientSelect = useCallback(
@@ -393,11 +461,14 @@ export const SaleCreatePage = () => {
     [mergeClient]
   );
 
-  const handleMetodoPagoChange = useCallback(
-    (code) => {
-      setMetodoPago(code);
-      const method = paymentMethods.find((m) => m.codigo === code);
-      if (method?.genera_cargo_cc && !clienteId) {
+  const handlePaymentLinesChange = useCallback(
+    (lines) => {
+      setPaymentLines(lines);
+      const needsClient = lines.some((line) => {
+        const method = paymentMethods.find((m) => m.codigo === line.metodo_pago);
+        return method?.genera_cargo_cc || method?.requiere_cliente;
+      });
+      if (needsClient && !clienteId) {
         setClientPickerOpen(true);
       }
     },
@@ -408,16 +479,27 @@ export const SaleCreatePage = () => {
     (client) => {
       mergeClient(client);
       setClienteId(String(client.id));
-      if (cuentaCorrienteMethod) {
-        setMetodoPago(cuentaCorrienteMethod.codigo);
+      if (cuentaCorrienteMethod && !splitPayment) {
+        const method = cuentaCorrienteMethod;
+        setPaymentLines([
+          createPaymentLine(
+            method.codigo,
+            total,
+            method.requiere_monto_recibido ? total : null
+          ),
+        ]);
       }
       setClientPickerOpen(false);
     },
-    [mergeClient, cuentaCorrienteMethod]
+    [mergeClient, cuentaCorrienteMethod, splitPayment, total]
   );
 
   const submitDisabled =
-    isOffline || !cart.length || (needsCashForSale && !cashSession && !cashLoading);
+    isOffline ||
+    !cart.length ||
+    !paymentBalanced ||
+    !paymentLines.length ||
+    (needsCashForSale && !cashSession && !cashLoading);
 
   const handleBackToSales = () => {
     setPaymentModalOpen(false);
@@ -458,8 +540,14 @@ export const SaleCreatePage = () => {
       return;
     }
 
-    if (selectedPaymentMethod?.requiere_cliente && !clienteId) {
-      setError(`Seleccione un cliente para pagar con ${selectedPaymentMethod.nombre}`);
+    if (needsClientForPayment && !clienteId) {
+      setError('Seleccione un cliente para este tipo de pago');
+      setPaymentModalOpen(true);
+      return;
+    }
+
+    if (!paymentBalanced) {
+      setError('La suma de los pagos debe coincidir con el total de la venta');
       setPaymentModalOpen(true);
       return;
     }
@@ -472,13 +560,13 @@ export const SaleCreatePage = () => {
       return;
     }
 
-    if (
-      selectedPaymentMethod?.requiere_monto_recibido &&
-      Number(montoRecibido) < total
-    ) {
-      setError('El monto recibido debe ser mayor o igual al total');
-      setPaymentModalOpen(true);
-      return;
+    for (const line of paymentLines) {
+      const method = methodsByCode[line.metodo_pago];
+      if (method?.requiere_monto_recibido && Number(line.monto_recibido) < Number(line.monto)) {
+        setError(`El monto recibido en ${method.nombre} debe cubrir el monto asignado`);
+        setPaymentModalOpen(true);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -488,10 +576,13 @@ export const SaleCreatePage = () => {
         cliente_id: clienteId ? Number(clienteId) : null,
         observaciones: observaciones.trim() || null,
         descuento: descuentoGlobal,
-        metodo_pago: metodoPago,
-        monto_recibido: selectedPaymentMethod?.requiere_monto_recibido
-          ? Number(montoRecibido) || total
-          : null,
+        pagos: paymentLines.map((line) => ({
+          metodo_pago: line.metodo_pago,
+          monto: Number(line.monto),
+          monto_recibido: methodsByCode[line.metodo_pago]?.requiere_monto_recibido
+            ? Number(line.monto_recibido ?? line.monto)
+            : null,
+        })),
         tipo_comprobante: tipoComprobante,
         requiere_caja: needsCashForSale,
         items: cart.map((i) => ({
@@ -738,21 +829,19 @@ export const SaleCreatePage = () => {
         descuentoGlobal={descuentoGlobal}
         onDescuentoChange={setDescuentoGlobal}
         paymentMethods={paymentMethods}
-        metodoPago={metodoPago}
-        onMetodoPagoChange={handleMetodoPagoChange}
+        splitMode={splitPayment}
+        onSplitModeChange={setSplitPayment}
+        paymentLines={paymentLines}
+        onPaymentLinesChange={handlePaymentLinesChange}
+        defaultMethodCode={defaultMethod?.codigo}
         tipoComprobante={tipoComprobante}
         onTipoComprobanteChange={setTipoComprobante}
         tipoComprobanteOptions={TIPOS_COMPROBANTE}
-        selectedPaymentMethod={selectedPaymentMethod}
         selectedClient={selectedClient}
-        isCuentaCorriente={isCuentaCorriente}
+        hasCuentaCorriente={hasCuentaCorriente}
         total={total}
         subtotal={subtotal}
-        montoRecibido={montoRecibido}
-        onMontoRecibidoChange={setMontoRecibido}
-        vuelto={vuelto}
-        onSetMontoExacto={() => setMontoRecibido(String(total))}
-        onAddMontoExtra={(extra) => setMontoRecibido(String(total + extra))}
+        paymentSummaryLabel={paymentSummaryLabel}
         needsCashWarning={needsCashWarning}
         cashSession={cashSession}
         onSubmit={handleSubmit}
@@ -772,7 +861,7 @@ export const SaleCreatePage = () => {
         total={total}
         submitting={submitting}
         disabled={!cart.length || isOffline}
-        paymentLabel={selectedPaymentMethod?.nombre}
+        paymentLabel={paymentSummaryLabel}
         onRegisterPayment={openPaymentModal}
       />
     </div>

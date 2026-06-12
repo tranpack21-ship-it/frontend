@@ -60,6 +60,18 @@ export const generateReceiptPdfBlob = async (data) => {
     y += 5;
   });
 
+  if (venta.pagos?.length > 1) {
+    venta.pagos.forEach((pago) => {
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        `  · ${pago.metodo_pago_nombre}: ${formatCurrency(pago.monto)}`,
+        margin,
+        y
+      );
+      y += 5;
+    });
+  }
+
   y += 2;
 
   autoTable(doc, {

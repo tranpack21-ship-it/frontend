@@ -8,7 +8,33 @@ export const CashMovementsTable = ({ movements, compact = false }) => {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <>
+      <div className="sm:hidden space-y-2">
+        {movements.map((m) => (
+          <div
+            key={m.id}
+            className="rounded-xl border border-slate-200 bg-white p-3 space-y-1.5"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className={`px-2 py-0.5 rounded text-xs font-medium ${movTipoClass[m.tipo] || movTipoClass.ingreso}`}
+              >
+                {movTipoLabel[m.tipo] || m.tipo}
+              </span>
+              <span className="font-semibold tabular-nums">{formatCurrency(m.monto)}</span>
+            </div>
+            <p className="text-sm text-slate-700 truncate">
+              {m.descripcion || m.referencia || '—'}
+            </p>
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>{m.metodo_pago_nombre || m.metodo_pago || '—'}</span>
+              <span>{formatDate(m.fecha)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden sm:block overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-slate-500 border-b">
@@ -43,6 +69,7 @@ export const CashMovementsTable = ({ movements, compact = false }) => {
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 };

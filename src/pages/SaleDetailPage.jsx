@@ -310,8 +310,20 @@ export const SaleDetailPage = () => {
               <dd className="font-medium">
                 {venta.metodo_pago_nombre || METODO_PAGO_LABELS[venta.metodo_pago] || venta.metodo_pago}
               </dd>
+              {venta.pagos?.length > 1 && (
+                <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                  {venta.pagos.map((pago) => (
+                    <li key={pago.id} className="flex justify-between gap-3">
+                      <span>{pago.metodo_pago_nombre}</span>
+                      <span className="tabular-nums font-medium">{formatCurrency(pago.monto)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {venta.metodo_pago === 'cuenta_corriente' && venta.cliente_id && (
+            {(venta.pagos?.some((p) => p.metodo_pago === 'cuenta_corriente') ||
+              venta.metodo_pago === 'cuenta_corriente') &&
+              venta.cliente_id && (
               <div>
                 <dt className="text-slate-500">Cuenta corriente</dt>
                 <dd>

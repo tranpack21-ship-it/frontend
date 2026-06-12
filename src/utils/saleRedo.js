@@ -8,6 +8,13 @@ export const buildSaleRedoState = (venta) => {
       observaciones: venta.observaciones || '',
       descuento: venta.descuento ?? 0,
       metodo_pago: venta.metodo_pago,
+      pagos: venta.pagos?.length
+        ? venta.pagos.map((p) => ({
+            metodo_pago: p.metodo_pago,
+            monto: p.monto,
+            monto_recibido: p.monto_recibido,
+          }))
+        : undefined,
       items: venta.detalle.map((line) => ({
         producto_id: line.producto_id,
         codigo: line.producto_codigo,

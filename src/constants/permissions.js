@@ -101,6 +101,7 @@ export const METODO_PAGO_LABELS = {
   tarjeta_credito: 'Tarjeta de crédito',
   tarjeta: 'Tarjeta',
   cuenta_corriente: 'Cuenta corriente',
+  mixto: 'Pago combinado',
 };
 
 export const METODOS_COBRO_CC = [

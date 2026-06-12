@@ -286,6 +286,7 @@ export const SalesPage = () => {
                       <th className="px-4 py-3 text-left font-medium">Nº Venta</th>
                       <th className="px-4 py-3 text-left font-medium">Cliente</th>
                       <th className="px-4 py-3 text-left font-medium">Total</th>
+                      <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Pago</th>
                       <th className="px-4 py-3 text-left font-medium">Estado</th>
                       <th className="px-4 py-3 text-left font-medium hidden md:table-cell">
                         Fecha
@@ -304,6 +305,9 @@ export const SalesPage = () => {
                         </td>
                         <td className="px-4 py-3 font-semibold text-slate-800">
                           {formatCurrency(s.total)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 hidden sm:table-cell max-w-[140px] truncate">
+                          {s.metodo_pago_nombre || s.metodo_pago || '—'}
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant={s.estado === 'completada' ? 'activo' : 'inactivo'}>

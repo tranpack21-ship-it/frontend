@@ -27,7 +27,19 @@ export const SaleReceiptPrint = ({ data, preview = false }) => {
           <p><span className="text-slate-500">Doc.:</span> {venta.tipo_documento} {venta.numero_documento}</p>
         )}
         <p><span className="text-slate-500">Vendedor:</span> {venta.vendedor}</p>
-        <p><span className="text-slate-500">Pago:</span> {venta.metodo_pago_nombre || METODO_PAGO_LABELS[venta.metodo_pago] || venta.metodo_pago}</p>
+        <p>
+          <span className="text-slate-500">Pago:</span>{' '}
+          {venta.metodo_pago_nombre || METODO_PAGO_LABELS[venta.metodo_pago] || venta.metodo_pago}
+        </p>
+        {venta.pagos?.length > 1 && (
+          <div className="mt-1 space-y-0.5">
+            {venta.pagos.map((pago, index) => (
+              <p key={pago.id ?? index}>
+                · {pago.metodo_pago_nombre}: {formatCurrency(pago.monto)}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
 
       <table className="w-full text-xs mb-4">
