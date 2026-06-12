@@ -57,7 +57,10 @@ export const SaleReceiptPrint = ({ data, preview = false }) => {
                 <div>{line.producto_nombre}</div>
                 <div className="text-slate-400">{line.producto_codigo}</div>
               </td>
-              <td className="text-right py-1.5">{formatNumber(line.cantidad, 2)}</td>
+              <td className="text-right py-1.5">
+                {formatNumber(line.cantidad, 2)}
+                {line.modo_venta === 'paquete' ? ' paq.' : ''}
+              </td>
               <td className="text-right py-1.5">{formatCurrency(line.subtotal)}</td>
             </tr>
           ))}

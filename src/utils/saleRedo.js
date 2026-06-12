@@ -19,6 +19,7 @@ export const buildSaleRedoState = (venta) => {
         producto_id: line.producto_id,
         codigo: line.producto_codigo,
         nombre: line.producto_nombre,
+        modo_venta: line.modo_venta ?? 'suelto',
         precio_unitario: line.precio_unitario,
         cantidad: line.cantidad,
         descuento: line.descuento ?? 0,

@@ -12,6 +12,9 @@ export const ProductFormPreview = ({ product, categoryName }) => {
     color,
     talle,
     precio_venta,
+    venta_por_paquete,
+    precio_venta_paquete,
+    unidades_por_paquete,
     stock,
     stock_minimo,
     unidad_medida,
@@ -61,9 +64,16 @@ export const ProductFormPreview = ({ product, categoryName }) => {
                 {sinStock ? ' · Sin stock' : stockBajo ? ' · Bajo' : ''}
               </p>
             </div>
-            <p className="font-bold text-brand-700 tabular-nums text-sm shrink-0">
-              {formatCurrency(price)}
-            </p>
+            <div className="text-right shrink-0">
+              <p className="font-bold text-brand-700 tabular-nums text-sm">
+                {formatCurrency(price)}
+              </p>
+              {venta_por_paquete && Number(precio_venta_paquete) > 0 && (
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  Paq. {formatCurrency(precio_venta_paquete)}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

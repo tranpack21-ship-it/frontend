@@ -24,6 +24,7 @@ import { SaleCancelModal } from '../components/commercial/SaleCancelModal';
 import { SaleRegisteredBanner } from '../components/commercial/SaleRegisteredBanner';
 import { formatDate } from '../utils/formatDate';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
+import { MODO_VENTA_LABELS } from '../utils/productPricing';
 import { getErrorMessage } from '../utils/getErrorMessage';
 import { buildSaleRedoState } from '../utils/saleRedo';
 import { OnlineOnlyButton } from '../components/common/OnlineOnlyLink';
@@ -243,6 +244,7 @@ export const SaleDetailPage = () => {
                 <tr className="border-b border-slate-200 text-slate-500">
                   <th className="py-2 text-left font-medium">Producto</th>
                   <th className="py-2 text-right font-medium">Cant.</th>
+                  <th className="py-2 text-left font-medium hidden sm:table-cell">Tipo</th>
                   <th className="py-2 text-right font-medium">Precio</th>
                   <th className="py-2 text-right font-medium">Subtotal</th>
                 </tr>
@@ -254,7 +256,15 @@ export const SaleDetailPage = () => {
                       <p className="font-medium text-slate-800">{line.producto_nombre}</p>
                       <p className="text-xs text-slate-400">{line.producto_codigo}</p>
                     </td>
-                    <td className="py-3 text-right">{formatNumber(line.cantidad, 2)}</td>
+                    <td className="py-3 text-right">
+                      {formatNumber(line.cantidad, 2)}
+                      {line.modo_venta === 'paquete' && (
+                        <span className="block text-[10px] text-slate-400">paq.</span>
+                      )}
+                    </td>
+                    <td className="py-3 text-slate-600 hidden sm:table-cell">
+                      {MODO_VENTA_LABELS[line.modo_venta] || 'Suelto'}
+                    </td>
                     <td className="py-3 text-right">{formatCurrency(line.precio_unitario)}</td>
                     <td className="py-3 text-right font-medium">
                       {formatCurrency(line.subtotal)}

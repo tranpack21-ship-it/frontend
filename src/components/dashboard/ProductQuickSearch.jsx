@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Package, AlertTriangle, CheckCircle2, ExternalLink, ShoppingCart } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle2, ExternalLink, ShoppingCart, Layers } from 'lucide-react';
+import {
+  hasPaquetePricing,
+  formatPaqueteHint,
+  formatPrecioResumen,
+  MODOS_VENTA,
+} from '../../utils/productPricing';
 import { ProductSearchCard } from '../catalog/ProductSearchCard';
 import { productService } from '../../services/productService';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -128,12 +134,13 @@ export const ProductQuickSearch = () => {
     setSelectedProduct(product);
   };
 
-  const handleConfirmAddToSale = () => {
+  const handleConfirmAddToSale = (modo = MODOS_VENTA.SUELTO) => {
     if (!selectedProduct || isOffline) return;
 
     navigate('/ventas/nueva', {
       state: {
         addProduct: selectedProduct,
+        addProductModo: modo,
         message: hasNoStock(selectedProduct)
           ? `«${selectedProduct.nombre}» agregado — sin stock disponible.`
           : null,
@@ -254,10 +261,30 @@ export const ProductQuickSearch = () => {
             <Button variant="ghost" onClick={() => setSelectedProduct(null)}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirmAddToSale} disabled={isOffline}>
-              <ShoppingCart className="w-4 h-4" />
-              Ir a venta
-            </Button>
+            {selectedProduct && hasPaquetePricing(selectedProduct) ? (
+              <div className="flex flex-wrap gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => handleConfirmAddToSale(MODOS_VENTA.SUELTO)}
+                  disabled={isOffline}
+                >
+                  <Layers className="w-4 h-4" />
+                  Suelto
+                </Button>
+                <Button
+                  onClick={() => handleConfirmAddToSale(MODOS_VENTA.PAQUETE)}
+                  disabled={isOffline}
+                >
+                  <Package className="w-4 h-4" />
+                  Paquete
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={() => handleConfirmAddToSale()} disabled={isOffline}>
+                <ShoppingCart className="w-4 h-4" />
+                Ir a venta
+              </Button>
+            )}
           </>
         }
       >
@@ -266,9 +293,31 @@ export const ProductQuickSearch = () => {
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="font-semibold text-slate-800">{selectedProduct.nombre}</p>
               <p className="text-sm text-slate-500 font-mono mt-0.5">{selectedProduct.codigo}</p>
-              <p className="text-lg font-bold text-brand-700 mt-2 tabular-nums">
-                {formatCurrency(selectedProduct.precio_venta)}
-              </p>
+              {hasPaquetePricing(selectedProduct) ? (
+                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-lg border border-slate-200 bg-white p-2">
+                    <p className="text-[10px] uppercase text-slate-500 font-medium">Suelto</p>
+                    <p className="font-bold text-brand-700 tabular-nums">
+                      {formatPrecioResumen(selectedProduct, MODOS_VENTA.SUELTO)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-brand-200 bg-brand-50/50 p-2">
+                    <p className="text-[10px] uppercase text-slate-500 font-medium">Paquete</p>
+                    <p className="font-bold text-brand-700 tabular-nums">
+                      {formatCurrency(selectedProduct.precio_venta_paquete)}
+                    </p>
+                    {formatPaqueteHint(selectedProduct) && (
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        {formatPaqueteHint(selectedProduct)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-lg font-bold text-brand-700 mt-2 tabular-nums">
+                  {formatCurrency(selectedProduct.precio_venta)}
+                </p>
+              )}
               <div className="mt-3">
                 <StockBadge product={selectedProduct} />
               </div>

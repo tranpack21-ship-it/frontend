@@ -1,4 +1,5 @@
 import { formatNumber } from './formatCurrency';
+import { getInventoryQty } from './productPricing';
 
 const unitLabel = (product) => product?.unidad_medida || 'uds';
 
@@ -8,7 +9,11 @@ const unitLabel = (product) => product?.unidad_medida || 'uds';
  */
 export const getStockAddWarning = (product, quantityInCart) => {
   const stock = Number(product?.stock ?? 0);
-  const qty = Number(quantityInCart);
+  const qtyInStock =
+    product?.modo_venta != null
+      ? getInventoryQty({ ...product, cantidad: quantityInCart })
+      : Number(quantityInCart);
+  const qty = Number(qtyInStock);
   if (!Number.isFinite(qty) || qty <= 0) return null;
 
   const remaining = stock - qty;

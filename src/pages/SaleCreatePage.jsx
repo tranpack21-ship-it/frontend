@@ -14,7 +14,12 @@ import { SearchInput } from '../components/ui/SearchInput';
 import { Alert } from '../components/ui/Alert';
 import { Spinner } from '../components/ui/Spinner';
 import { Badge } from '../components/ui/Badge';
-import { SaleCartLine } from '../components/commercial/SaleCartLine';
+import { SaleCartLine, applyModoToCartLine } from '../components/commercial/SaleCartLine';
+import {
+  buildCartLine,
+  cartLineKey,
+  MODOS_VENTA,
+} from '../utils/productPricing';
 import { SaleMobileCheckoutBar } from '../components/commercial/SaleMobileCheckoutBar';
 import { SaleCheckoutModal } from '../components/commercial/SaleCheckoutModal';
 import { createPaymentLine } from '../components/commercial/SalePaymentSplitEditor';
@@ -158,23 +163,29 @@ export const SaleCreatePage = () => {
       if (redo.items?.length) {
         const itemsWithStock = await Promise.all(
           redo.items.map(async (item) => {
+            const modo = item.modo_venta ?? MODOS_VENTA.SUELTO;
             try {
               const product = await productService.getById(item.producto_id);
+              const line = buildCartLine(product, modo);
               return {
-                producto_id: item.producto_id,
-                codigo: product.codigo || item.codigo,
-                nombre: product.nombre || item.nombre,
-                stock: product.stock,
-                precio_unitario: product.precio_venta,
+                ...line,
                 cantidad: item.cantidad,
+                precio_unitario: item.precio_unitario ?? line.precio_unitario,
                 descuento: item.descuento ?? 0,
               };
             } catch {
               return {
+                lineKey: cartLineKey(item.producto_id, modo),
                 producto_id: item.producto_id,
+                modo_venta: modo,
                 codigo: item.codigo,
                 nombre: item.nombre,
                 stock: item.stock ?? 0,
+                unidad_medida: 'unidad',
+                precio_venta: item.precio_unitario,
+                precio_venta_paquete: null,
+                unidades_por_paquete: 1,
+                tiene_precio_paquete: false,
                 precio_unitario: item.precio_unitario,
                 cantidad: item.cantidad,
                 descuento: item.descuento ?? 0,
@@ -199,11 +210,14 @@ export const SaleCreatePage = () => {
     if (!product?.id) return;
 
     let cancelled = false;
+    const modo = location.state?.addProductModo ?? MODOS_VENTA.SUELTO;
+    const key = cartLineKey(product.id, modo);
+    const draftLine = buildCartLine(product, modo);
 
     setCart((prev) => {
-      const existing = prev.find((i) => i.producto_id === product.id);
+      const existing = prev.find((i) => i.lineKey === key);
       const newQty = existing ? existing.cantidad + 1 : 1;
-      const warning = getStockAddWarning(product, newQty);
+      const warning = getStockAddWarning({ ...draftLine, cantidad: newQty }, newQty);
 
       if (!cancelled) {
         if (warning) setStockWarning(warning);
@@ -212,26 +226,11 @@ export const SaleCreatePage = () => {
 
       if (existing) {
         return prev.map((i) =>
-          i.producto_id === product.id ? { ...i, cantidad: i.cantidad + 1 } : i
+          i.lineKey === key ? { ...i, cantidad: i.cantidad + 1 } : i
         );
       }
 
-      return [
-        ...prev,
-        {
-          producto_id: product.id,
-          codigo: product.codigo,
-          nombre: product.nombre,
-          imagen_url: product.imagen_url,
-          color: product.color,
-          talle: product.talle,
-          stock: product.stock,
-          unidad_medida: product.unidad_medida,
-          precio_unitario: product.precio_venta,
-          cantidad: 1,
-          descuento: 0,
-        },
-      ];
+      return [...prev, draftLine];
     });
 
     if (!cancelled) {
@@ -278,50 +277,37 @@ export const SaleCreatePage = () => {
     });
   };
 
-  const addToCart = (product) => {
+  const addToCart = (product, modoVenta = MODOS_VENTA.SUELTO) => {
     setError('');
-    const existingQty = cart.find((i) => i.producto_id === product.id)?.cantidad ?? 0;
+    const key = cartLineKey(product.id, modoVenta);
+    const existingQty = cart.find((i) => i.lineKey === key)?.cantidad ?? 0;
+    const draftLine = buildCartLine(product, modoVenta);
     const newQty = existingQty + 1;
-    const warning = getStockAddWarning(product, newQty);
+    const warning = getStockAddWarning({ ...draftLine, cantidad: newQty }, newQty);
     if (warning) setStockWarning(warning);
 
     const wasEmpty = cart.length === 0;
     setCart((prev) => {
-      const existing = prev.find((i) => i.producto_id === product.id);
+      const existing = prev.find((i) => i.lineKey === key);
       if (existing) {
         return prev.map((i) =>
-          i.producto_id === product.id ? { ...i, cantidad: i.cantidad + 1 } : i
+          i.lineKey === key ? { ...i, cantidad: i.cantidad + 1 } : i
         );
       }
-      return [
-        ...prev,
-        {
-          producto_id: product.id,
-          codigo: product.codigo,
-          nombre: product.nombre,
-          imagen_url: product.imagen_url,
-          color: product.color,
-          talle: product.talle,
-          stock: product.stock,
-          unidad_medida: product.unidad_medida,
-          precio_unitario: product.precio_venta,
-          cantidad: 1,
-          descuento: 0,
-        },
-      ];
+      return [...prev, draftLine];
     });
     if (wasEmpty && typeof window !== 'undefined' && window.matchMedia('(max-width: 1279px)').matches) {
       scrollToCart();
     }
   };
 
-  const updateCartItem = (id, field, value) => {
+  const updateCartItem = (lineKey, field, value) => {
     setCart((prev) => {
       const next = prev.map((i) =>
-        i.producto_id === id ? { ...i, [field]: Number(value) || 0 } : i
+        i.lineKey === lineKey ? { ...i, [field]: Number(value) || 0 } : i
       );
       if (field === 'cantidad') {
-        const item = next.find((i) => i.producto_id === id);
+        const item = next.find((i) => i.lineKey === lineKey);
         if (item) {
           const warning = getStockAddWarning(item, item.cantidad);
           setStockWarning(warning || '');
@@ -331,8 +317,30 @@ export const SaleCreatePage = () => {
     });
   };
 
-  const removeFromCart = (id) => {
-    setCart((prev) => prev.filter((i) => i.producto_id !== id));
+  const changeCartModo = (lineKey, newModo) => {
+    setCart((prev) => {
+      const current = prev.find((i) => i.lineKey === lineKey);
+      if (!current || current.modo_venta === newModo) return prev;
+
+      const updated = applyModoToCartLine(current, newModo);
+      const newKey = updated.lineKey;
+      const withoutCurrent = prev.filter((i) => i.lineKey !== lineKey);
+      const existingTarget = withoutCurrent.find((i) => i.lineKey === newKey);
+
+      if (existingTarget) {
+        return withoutCurrent.map((i) =>
+          i.lineKey === newKey
+            ? { ...i, cantidad: i.cantidad + updated.cantidad }
+            : i
+        );
+      }
+
+      return [...withoutCurrent, updated];
+    });
+  };
+
+  const removeFromCart = (lineKey) => {
+    setCart((prev) => prev.filter((i) => i.lineKey !== lineKey));
   };
 
   const subtotal = cart.reduce(
@@ -588,6 +596,7 @@ export const SaleCreatePage = () => {
         items: cart.map((i) => ({
           producto_id: i.producto_id,
           cantidad: i.cantidad,
+          modo_venta: i.modo_venta ?? MODOS_VENTA.SUELTO,
           precio_unitario: i.precio_unitario,
           descuento: i.descuento ?? 0,
         })),
@@ -724,6 +733,7 @@ export const SaleCreatePage = () => {
                     key={p.id}
                     product={p}
                     onClick={() => addToCart(p)}
+                    onAddWithMode={(product, modo) => addToCart(product, modo)}
                     footer={
                       <p
                         className={`text-xs mt-1.5 font-medium ${
@@ -778,10 +788,11 @@ export const SaleCreatePage = () => {
                 >
                   {cart.map((item) => (
                     <SaleCartLine
-                      key={item.producto_id}
+                      key={item.lineKey}
                       item={item}
                       onUpdate={updateCartItem}
                       onRemove={removeFromCart}
+                      onModoChange={changeCartModo}
                     />
                   ))}
                 </div>

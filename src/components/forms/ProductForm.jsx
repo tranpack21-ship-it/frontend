@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Input } from '../ui/Input';
@@ -35,6 +35,9 @@ export const ProductForm = ({
       talle: '',
       categoria_id: '',
       precio_venta: 0,
+      venta_por_paquete: false,
+      precio_venta_paquete: 0,
+      unidades_por_paquete: 1,
       precio_costo: 0,
       stock: 0,
       stock_minimo: 0,
@@ -62,8 +65,24 @@ export const ProductForm = ({
       imagen_url: data.imagen_url || null,
       color: data.color || null,
       talle: data.talle || null,
+      precio_venta_paquete:
+        data.venta_por_paquete && data.precio_venta_paquete > 0
+          ? data.precio_venta_paquete
+          : null,
+      unidades_por_paquete: data.venta_por_paquete ? data.unidades_por_paquete : 1,
+      venta_por_paquete: undefined,
     });
   };
+
+  const ventaPorPaquete = watch('venta_por_paquete');
+  const unidadMedida = watch('unidad_medida');
+
+  useEffect(() => {
+    if (!ventaPorPaquete) {
+      setValue('precio_venta_paquete', 0);
+      setValue('unidades_por_paquete', 1);
+    }
+  }, [ventaPorPaquete, setValue]);
 
   const estadoOptions = [
     { value: 'activo', label: 'Activo' },
@@ -153,41 +172,90 @@ export const ProductForm = ({
             })}
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Controller
-              name="precio_venta"
-              control={control}
-              render={({ field }) => (
-                <CurrencyInput
-                  id="precio_venta"
-                  label="Precio venta"
-                  hint={PRICE_INPUT_HINT}
-                  size="md"
-                  emptyZero
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  error={errors.precio_venta?.message}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Controller
+                name="precio_venta"
+                control={control}
+                render={({ field }) => (
+                  <CurrencyInput
+                    id="precio_venta"
+                    label={`Precio suelto (por ${unidadMedida || 'unidad'})`}
+                    hint={PRICE_INPUT_HINT}
+                    size="md"
+                    emptyZero
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={errors.precio_venta?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="precio_costo"
+                control={control}
+                render={({ field }) => (
+                  <CurrencyInput
+                    id="precio_costo"
+                    label="Precio costo"
+                    hint={PRICE_INPUT_HINT}
+                    size="md"
+                    emptyZero
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={errors.precio_costo?.message}
+                  />
+                )}
+              />
+            </div>
+
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1 rounded border-slate-300 text-brand-600 focus:ring-brand-400"
+                {...register('venta_por_paquete')}
+              />
+              <span className="text-sm text-slate-700">
+                <span className="font-medium">También vender por paquete / bulto</span>
+                <span className="block text-xs text-slate-500 mt-0.5">
+                  Ej: paquete de 1.000 palillos o rollo completo en kg
+                </span>
+              </span>
+            </label>
+
+            {ventaPorPaquete && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <Controller
+                  name="precio_venta_paquete"
+                  control={control}
+                  render={({ field }) => (
+                    <CurrencyInput
+                      id="precio_venta_paquete"
+                      label="Precio del paquete completo"
+                      hint={PRICE_INPUT_HINT}
+                      size="md"
+                      emptyZero
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      error={errors.precio_venta_paquete?.message}
+                    />
+                  )}
                 />
-              )}
-            />
-            <Controller
-              name="precio_costo"
-              control={control}
-              render={({ field }) => (
-                <CurrencyInput
-                  id="precio_costo"
-                  label="Precio costo"
-                  hint={PRICE_INPUT_HINT}
+                <Input
+                  id="unidades_por_paquete"
+                  label={`Unidades por paquete (${unidadMedida || 'unidad'})`}
+                  type="number"
+                  step="0.001"
+                  min="0.001"
                   size="md"
-                  emptyZero
-                  value={field.value}
-                  onChange={field.onChange}
-                  onBlur={field.onBlur}
-                  error={errors.precio_costo?.message}
+                  hint="Cuántas unidades de stock descuenta 1 paquete"
+                  error={errors.unidades_por_paquete?.message}
+                  {...register('unidades_por_paquete')}
                 />
-              )}
-            />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-3">
