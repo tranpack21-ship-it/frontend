@@ -18,6 +18,7 @@ export const ProductForm = ({
   categories = [],
   onCategoryCreated,
   defaultValues,
+  isEditing = false,
   stockActual = null,
   onSubmit,
 }) => {
@@ -43,6 +44,7 @@ export const ProductForm = ({
       precio_venta_paquete: 0,
       unidades_por_paquete: 1,
       precio_costo: 0,
+      stock: 0,
       stock_minimo: 0,
       unidad_medida: 'unidad',
       estado: 'activo',
@@ -61,7 +63,7 @@ export const ProductForm = ({
   };
 
   const handleFormSubmit = (data) => {
-    onSubmit({
+    const payload = {
       ...data,
       codigo: data.codigo || null,
       descripcion: data.descripcion || null,
@@ -74,7 +76,15 @@ export const ProductForm = ({
           : null,
       unidades_por_paquete: data.venta_por_paquete ? data.unidades_por_paquete : 1,
       venta_por_paquete: undefined,
-    });
+    };
+
+    if (isEditing) {
+      delete payload.stock;
+    } else {
+      payload.stock = data.stock ?? 0;
+    }
+
+    onSubmit(payload);
   };
 
   const ventaPorPaquete = watch('venta_por_paquete');
@@ -261,31 +271,43 @@ export const ProductForm = ({
             )}
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm text-slate-700">
-                <Package className="w-4 h-4 text-slate-500 shrink-0" />
-                <span>
-                  Stock actual:{' '}
-                  <strong className="tabular-nums text-slate-900">
-                    {stockActual != null
-                      ? formatNumber(stockActual, 2)
-                      : '0 (nuevo producto)'}
-                  </strong>
-                  {unidadMedida ? ` ${unidadMedida}` : ''}
-                </span>
+          {isEditing ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  <Package className="w-4 h-4 text-slate-500 shrink-0" />
+                  <span>
+                    Stock actual:{' '}
+                    <strong className="tabular-nums text-slate-900">
+                      {formatNumber(stockActual ?? 0, 2)}
+                    </strong>
+                    {unidadMedida ? ` ${unidadMedida}` : ''}
+                  </span>
+                </div>
+                <Link
+                  to="/catalogo/inventario"
+                  className="text-xs font-medium text-brand-700 hover:text-brand-800 underline underline-offset-2"
+                >
+                  Ajustar en Inventario
+                </Link>
               </div>
-              <Link
-                to="/catalogo/inventario"
-                className="text-xs font-medium text-brand-700 hover:text-brand-800 underline underline-offset-2"
-              >
-                Ajustar en Inventario
-              </Link>
+              <p className="text-xs text-slate-500">
+                Para modificar el stock use Inventario (entradas, salidas o ajustes).
+              </p>
             </div>
-            <p className="text-xs text-slate-500">
-              El stock solo se modifica desde Inventario (entradas, salidas o ajustes).
-            </p>
-          </div>
+          ) : (
+            <Input
+              id="stock"
+              label={`Stock inicial${unidadMedida ? ` (${unidadMedida})` : ''}`}
+              type="number"
+              step="0.001"
+              min="0"
+              size="md"
+              hint="Cantidad al dar de alta el producto. Luego se gestiona en Inventario."
+              error={errors.stock?.message}
+              {...register('stock')}
+            />
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <Input
@@ -328,7 +350,7 @@ export const ProductForm = ({
         <div className="xl:sticky xl:top-0 xl:self-start">
           <ProductFormPreview
             key={previewKey}
-            product={{ ...watched, stock: stockActual ?? 0 }}
+            product={{ ...watched, stock: isEditing ? (stockActual ?? 0) : watched.stock }}
             categoryName={categoryName}
           />
         </div>

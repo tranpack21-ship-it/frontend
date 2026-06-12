@@ -424,6 +424,7 @@ export const ProductsPage = () => {
           formId="product-form"
           categories={categories}
           onCategoryCreated={handleCategoryCreated}
+          isEditing={Boolean(editing)}
           defaultValues={editing?.values}
           stockActual={editing?.stockActual ?? null}
           onSubmit={handleSubmit}

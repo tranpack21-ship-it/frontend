@@ -53,6 +53,7 @@ export const productFormSchema = z
       .optional()
       .default(1),
     precio_costo: z.coerce.number().min(0, 'No puede ser negativo'),
+    stock: z.coerce.number().min(0, 'No puede ser negativo').optional().default(0),
     stock_minimo: z.coerce.number().min(0, 'No puede ser negativo'),
     unidad_medida: z.enum(unidades, { message: 'Seleccione una unidad' }),
     estado: z.enum(['activo', 'inactivo']),
