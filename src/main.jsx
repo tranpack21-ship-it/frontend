@@ -10,6 +10,31 @@ import { PWA_UPDATE_EVENT } from './components/pwa/PwaUpdateBanner.jsx';
 setupGlobalErrorHandlers();
 purgeLegacyApiCaches();
 
+let refreshingForSw = false;
+
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshingForSw) return;
+    refreshingForSw = true;
+    window.location.reload();
+  });
+}
+
+const scheduleSwUpdateChecks = (registration) => {
+  const checkForUpdates = () => {
+    registration.update().catch(() => {});
+  };
+
+  checkForUpdates();
+  setInterval(checkForUpdates, 15 * 60 * 1000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForUpdates();
+  });
+
+  window.addEventListener('focus', checkForUpdates);
+};
+
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
@@ -18,14 +43,20 @@ const updateSW = registerSW({
         detail: { applyUpdate: updateSW },
       })
     );
+
+    const isStandalonePwa =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true;
+
+    if (isStandalonePwa) {
+      void updateSW(true);
+    }
   },
   onOfflineReady() {
     console.info('[PWA] Interfaz lista para uso sin conexión (los datos de ventas siempre se consultan en línea).');
   },
   onRegisteredSW(_swUrl, registration) {
-    if (registration) {
-      setInterval(() => registration.update(), 60 * 60 * 1000);
-    }
+    if (registration) scheduleSwUpdateChecks(registration);
   },
 });
 
