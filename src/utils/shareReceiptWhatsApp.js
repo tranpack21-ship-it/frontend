@@ -41,7 +41,19 @@ const fixArgentinaMobilePrefix = (digits) => {
 };
 
 /**
+ * Quita el prefijo móvil "15" solo en AMBA (11 15 xxxx xxxx).
+ * No usar un patrón genérico con "15": números como 3815278529 (Tucumán)
+ * contienen "15" en medio y se corromperían.
+ */
+const stripAmbaMobile15 = (digits) => {
+  const amba = digits.match(/^11(15)(\d{8})$/);
+  if (amba) return `11${amba[2]}`;
+  return digits;
+};
+
+/**
  * Normaliza teléfono a formato internacional para WhatsApp (solo dígitos, sin +).
+ * Argentina: 54 + 9 + código de área + número (ej. 5493815278529).
  */
 export const normalizePhoneForWhatsApp = (phone, defaultCountryCode = DEFAULT_COUNTRY_CODE) => {
   let digits = String(phone || '').replace(/\D/g, '');
@@ -61,10 +73,11 @@ export const normalizePhoneForWhatsApp = (phone, defaultCountryCode = DEFAULT_CO
     digits = digits.slice(1);
   }
 
-  digits = digits.replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2');
+  digits = stripAmbaMobile15(digits);
 
-  if (digits.startsWith('15') && digits.length > 8) {
-    digits = digits.slice(2);
+  // 15 + 8 dígitos sin área (uso común en CABA/GBA)
+  if (/^15\d{8}$/.test(digits)) {
+    digits = `11${digits.slice(2)}`;
   }
 
   if (defaultCountryCode && !digits.startsWith(defaultCountryCode)) {
