@@ -70,6 +70,23 @@ export const clampDecimalValue = (value, { min, max } = {}) => {
   return n;
 };
 
-export const selectAllOnFocus = (event) => {
-  requestAnimationFrame(() => event.currentTarget.select());
+/**
+ * Selecciona todo el texto al enfocar. Captura el elemento de forma síncrona
+ * porque event.currentTarget es null dentro de requestAnimationFrame (React).
+ */
+export const selectAllOnFocus = (elementOrEvent) => {
+  const el =
+    elementOrEvent?.nodeType === 1
+      ? elementOrEvent
+      : elementOrEvent?.target ?? elementOrEvent?.currentTarget;
+
+  if (!el || typeof el.select !== 'function') return;
+
+  requestAnimationFrame(() => {
+    try {
+      el.select();
+    } catch {
+      // El input pudo desmontarse antes del frame
+    }
+  });
 };

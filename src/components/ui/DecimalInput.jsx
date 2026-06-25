@@ -99,7 +99,7 @@ export const DecimalInput = forwardRef(function DecimalInput(
 
   const handleFocus = (e) => {
     focusedRef.current = true;
-    if (selectOnFocus) selectAllOnFocus(e);
+    if (selectOnFocus) selectAllOnFocus(inputRef.current ?? e.target);
     onFocus?.(e);
   };
 
