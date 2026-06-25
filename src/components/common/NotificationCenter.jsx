@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, RefreshCw, Settings2 } from 'lucide-react';
+import { DecimalInput } from '../ui/DecimalInput';
 import { useAlerts } from '../../context/AlertsContext';
 import { useConnection } from '../../context/ConnectionContext';
 import {
@@ -27,11 +28,11 @@ export const NotificationCenter = () => {
 
   const [open, setOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [draftUmbral, setDraftUmbral] = useState(String(umbralHoras));
+  const [draftUmbral, setDraftUmbral] = useState(umbralHoras);
   const containerRef = useRef(null);
 
   useEffect(() => {
-    setDraftUmbral(String(umbralHoras));
+    setDraftUmbral(umbralHoras);
   }, [umbralHoras]);
 
   useEffect(() => {
@@ -125,12 +126,15 @@ export const NotificationCenter = () => {
                 Umbral caja abierta (horas)
               </p>
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
+                <DecimalInput
+                  bare
+                  decimals={0}
                   min={ALERT_UMBRAL_MIN}
                   max={ALERT_UMBRAL_MAX}
+                  emptyZero={false}
+                  fallbackOnBlur={ALERT_UMBRAL_DEFAULT}
                   value={draftUmbral}
-                  onChange={(e) => setDraftUmbral(e.target.value)}
+                  onChange={setDraftUmbral}
                   className="h-9 w-20 rounded-lg border border-slate-200 px-2 text-sm"
                 />
                 <Button size="sm" onClick={handleSaveUmbral}>

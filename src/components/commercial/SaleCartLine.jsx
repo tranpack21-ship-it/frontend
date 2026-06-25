@@ -10,6 +10,7 @@ import {
   getPrecioForModo,
 } from '../../utils/productPricing';
 import { CurrencyInput } from '../ui/CurrencyInput';
+import { DecimalInput } from '../ui/DecimalInput';
 import { ProductImage } from '../catalog/ProductImage';
 import { ProductMetaChips } from '../catalog/ProductMetaChips';
 
@@ -129,14 +130,16 @@ export const SaleCartLine = ({ item, onUpdate, onRemove, onModoChange, readOnly 
               <label className="sr-only" htmlFor={`qty-${item.lineKey}`}>
                 Cantidad
               </label>
-              <input
+              <DecimalInput
+                bare
                 id={`qty-${item.lineKey}`}
-                type="number"
-                inputMode="decimal"
-                min="0.001"
+                min={0.001}
                 step="0.001"
+                decimals={3}
+                emptyZero={false}
+                fallbackOnBlur={1}
                 value={item.cantidad}
-                onChange={(e) => onUpdate(item.lineKey, 'cantidad', e.target.value)}
+                onChange={(v) => onUpdate(item.lineKey, 'cantidad', v)}
                 className="w-16 sm:w-20 text-center text-base font-semibold bg-transparent border-x border-slate-200 py-3 tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-400/50"
               />
               <button

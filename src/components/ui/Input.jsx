@@ -1,4 +1,5 @@
 import { fieldBase, fieldSizes, fieldError, fieldNormal } from './fieldStyles';
+import { DecimalInput } from './DecimalInput';
 
 export const Input = ({
   label,
@@ -10,8 +11,55 @@ export const Input = ({
   wrapperClassName = '',
   icon: Icon,
   iconPosition = 'left',
+  type,
+  onWheel,
+  allowWheelOnNumber = false,
+  onChange,
+  onBlur,
+  ref,
+  min,
+  max,
+  step,
+  value,
+  defaultValue,
+  emptyZero,
+  decimals,
+  fallbackOnBlur,
+  selectOnFocus,
   ...props
 }) => {
+  if (type === 'number') {
+    return (
+      <DecimalInput
+        label={label}
+        hint={hint}
+        error={error}
+        id={id}
+        size={size}
+        className={className}
+        wrapperClassName={wrapperClassName}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        defaultValue={defaultValue}
+        emptyZero={emptyZero !== false}
+        decimals={decimals}
+        fallbackOnBlur={fallbackOnBlur}
+        selectOnFocus={selectOnFocus !== false}
+        allowWheelOnNumber={allowWheelOnNumber}
+        ref={ref}
+        onBlur={onBlur}
+        onChange={(num) => {
+          onChange?.({
+            target: { name: props.name, value: num ?? '' },
+          });
+        }}
+        {...props}
+      />
+    );
+  }
+
   const sizeClass = fieldSizes[size] || fieldSizes.md;
   const borderClass = error ? fieldError : fieldNormal;
   const hasIcon = Boolean(Icon);
@@ -20,6 +68,10 @@ export const Input = ({
       ? 'pl-11 pr-4'
       : 'pl-4 pr-11'
     : 'px-4';
+
+  const handleWheel = (event) => {
+    onWheel?.(event);
+  };
 
   return (
     <div className={`w-full min-w-0 ${wrapperClassName}`}>
@@ -42,6 +94,11 @@ export const Input = ({
         )}
         <input
           id={id}
+          type={type}
+          ref={ref}
+          onWheel={handleWheel}
+          onChange={onChange}
+          onBlur={onBlur}
           className={`${fieldBase} ${sizeClass} ${borderClass} ${paddingClass} ${className}`}
           {...props}
         />

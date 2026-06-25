@@ -122,10 +122,25 @@ export const QuoteCreatePage = () => {
     }
   };
 
+  const normalizeCartNumeric = (field, value) => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return field === 'cantidad' ? 1 : 0;
+    return n;
+  };
+
   const updateCartItem = (lineKey, field, value) => {
     setCart((prev) => {
       const next = prev.map((i) =>
-        i.lineKey === lineKey ? { ...i, [field]: Number(value) || 0 } : i
+        i.lineKey === lineKey
+          ? {
+              ...i,
+              [field]:
+                field === 'cantidad' || field === 'precio_unitario' || field === 'descuento'
+                  ? normalizeCartNumeric(field, value)
+                  : value,
+            }
+          : i
       );
       if (field === 'cantidad') {
         const item = next.find((i) => i.lineKey === lineKey);
