@@ -66,7 +66,11 @@ export const SaleCreatePage = () => {
   const [paymentLines, setPaymentLines] = useState([]);
   const [tipoComprobante, setTipoComprobante] = useState('ticket');
   const [stockWarning, setStockWarning] = useState('');
+  const [presupuestoId, setPresupuestoId] = useState(null);
+  const [presupuestoNumero, setPresupuestoNumero] = useState('');
   const debouncedProductSearch = useDebounce(productSearch, 300);
+
+  const convertingFromQuote = Boolean(presupuestoId);
 
   const cartSectionRef = useRef(null);
 
@@ -204,6 +208,67 @@ export const SaleCreatePage = () => {
       cancelled = true;
     };
   }, [location.state?.redoFrom, location.pathname, navigate]);
+
+  useEffect(() => {
+    const convert = location.state?.convertFrom;
+    if (!convert) return;
+
+    let cancelled = false;
+
+    const applyConvert = async () => {
+      setPresupuestoId(convert.presupuesto_id);
+      setPresupuestoNumero(convert.presupuesto_numero || '');
+      if (convert.cliente_id != null) setClienteId(convert.cliente_id);
+      if (convert.observaciones) setObservaciones(convert.observaciones);
+      if (convert.descuento != null) setDescuentoGlobal(convert.descuento);
+
+      if (convert.items?.length) {
+        const itemsWithStock = await Promise.all(
+          convert.items.map(async (item) => {
+            const modo = item.modo_venta ?? MODOS_VENTA.SUELTO;
+            try {
+              const product = await productService.getById(item.producto_id);
+              const line = buildCartLine(product, modo);
+              return {
+                ...line,
+                cantidad: item.cantidad,
+                precio_unitario: item.precio_unitario ?? line.precio_unitario,
+                descuento: item.descuento ?? 0,
+              };
+            } catch {
+              return {
+                lineKey: cartLineKey(item.producto_id, modo),
+                producto_id: item.producto_id,
+                modo_venta: modo,
+                codigo: item.codigo,
+                nombre: item.nombre,
+                stock: item.stock ?? 0,
+                unidad_medida: 'unidad',
+                precio_venta: item.precio_unitario,
+                precio_venta_paquete: null,
+                unidades_por_paquete: 1,
+                tiene_precio_paquete: false,
+                precio_unitario: item.precio_unitario,
+                cantidad: item.cantidad,
+                descuento: item.descuento ?? 0,
+              };
+            }
+          })
+        );
+        if (!cancelled) {
+          setCart(itemsWithStock);
+          setPaymentModalOpen(true);
+        }
+      }
+
+      if (!cancelled) navigate(location.pathname, { replace: true, state: {} });
+    };
+
+    applyConvert();
+    return () => {
+      cancelled = true;
+    };
+  }, [location.state?.convertFrom, location.pathname, navigate]);
 
   useEffect(() => {
     const product = location.state?.addProduct;
@@ -593,6 +658,7 @@ export const SaleCreatePage = () => {
         })),
         tipo_comprobante: tipoComprobante,
         requiere_caja: needsCashForSale,
+        presupuesto_id: presupuestoId ?? undefined,
         items: cart.map((i) => ({
           producto_id: i.producto_id,
           cantidad: i.cantidad,
@@ -604,7 +670,9 @@ export const SaleCreatePage = () => {
       navigate(`/ventas/${venta.id}`, {
         state: {
           justCreated: true,
-          message: `${venta.numero} · ${formatCurrency(venta.total)}`,
+          message: convertingFromQuote
+            ? `Presupuesto ${presupuestoNumero} convertido · ${formatCurrency(venta.total)}`
+            : `${venta.numero} · ${formatCurrency(venta.total)}`,
         },
       });
     } catch (err) {
@@ -630,10 +698,12 @@ export const SaleCreatePage = () => {
         <div className="flex-1 min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
             <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 text-brand-600 shrink-0" />
-            Nueva venta
+            {convertingFromQuote ? 'Convertir presupuesto' : 'Nueva venta'}
           </h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            Agregue productos y registre el pago cuando esté listo
+            {convertingFromQuote
+              ? `Presupuesto ${presupuestoNumero} — registre el pago para completar la venta`
+              : 'Agregue productos y registre el pago cuando esté listo'}
           </p>
         </div>
         {requiresOpenCash && (
@@ -691,7 +761,15 @@ export const SaleCreatePage = () => {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 xl:gap-6">
+      {convertingFromQuote && (
+        <Alert variant="info" className="mb-4">
+          Los productos provienen del presupuesto {presupuestoNumero}. Al confirmar el pago se
+          registrará la venta, se descontará stock y el presupuesto quedará marcado como convertido.
+        </Alert>
+      )}
+
+      <div className={`grid grid-cols-1 ${convertingFromQuote ? '' : 'xl:grid-cols-2'} gap-5 xl:gap-6`}>
+        {!convertingFromQuote && (
         <Card title="Buscar producto" className="!p-4 sm:!p-6 h-fit">
           <SearchInput
             id="buscar-prod-venta"
@@ -754,6 +832,7 @@ export const SaleCreatePage = () => {
               })}
           </div>
         </Card>
+        )}
 
         <div ref={cartSectionRef} className="scroll-mt-4 flex flex-col min-h-0">
           <Card
@@ -793,6 +872,7 @@ export const SaleCreatePage = () => {
                       onUpdate={updateCartItem}
                       onRemove={removeFromCart}
                       onModoChange={changeCartModo}
+                      readOnly={convertingFromQuote}
                     />
                   ))}
                 </div>

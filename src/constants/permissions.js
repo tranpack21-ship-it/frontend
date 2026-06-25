@@ -26,6 +26,10 @@ export const PERMISSIONS = {
   VENTAS_VER: 'ventas.ver',
   VENTAS_CREAR: 'ventas.crear',
   VENTAS_ANULAR: 'ventas.anular',
+  PRESUPUESTOS_VER: 'presupuestos.ver',
+  PRESUPUESTOS_CREAR: 'presupuestos.crear',
+  PRESUPUESTOS_ANULAR: 'presupuestos.anular',
+  PRESUPUESTOS_CONVERTIR: 'presupuestos.convertir',
   CAJA_VER: 'caja.ver',
   CAJA_ABRIR: 'caja.abrir',
   CAJA_CERRAR: 'caja.cerrar',
@@ -66,6 +70,13 @@ export const VENTAS_ACCESS_PERMISSIONS = [
   PERMISSIONS.VENTAS_VER,
   PERMISSIONS.VENTAS_CREAR,
   PERMISSIONS.VENTAS_ANULAR,
+];
+
+export const PRESUPUESTOS_ACCESS_PERMISSIONS = [
+  PERMISSIONS.PRESUPUESTOS_VER,
+  PERMISSIONS.PRESUPUESTOS_CREAR,
+  PERMISSIONS.PRESUPUESTOS_ANULAR,
+  PERMISSIONS.PRESUPUESTOS_CONVERTIR,
 ];
 
 export const CAJA_ACCESS_PERMISSIONS = [
@@ -164,6 +175,10 @@ export const PERMISSION_LABELS = {
   [PERMISSIONS.VENTAS_VER]: 'Ver ventas',
   [PERMISSIONS.VENTAS_CREAR]: 'Registrar ventas',
   [PERMISSIONS.VENTAS_ANULAR]: 'Anular ventas',
+  [PERMISSIONS.PRESUPUESTOS_VER]: 'Ver presupuestos',
+  [PERMISSIONS.PRESUPUESTOS_CREAR]: 'Crear presupuestos',
+  [PERMISSIONS.PRESUPUESTOS_ANULAR]: 'Anular presupuestos',
+  [PERMISSIONS.PRESUPUESTOS_CONVERTIR]: 'Convertir presupuestos a venta',
   [PERMISSIONS.CAJA_VER]: 'Ver caja',
   [PERMISSIONS.CAJA_ABRIR]: 'Abrir caja',
   [PERMISSIONS.CAJA_CERRAR]: 'Cerrar caja',
@@ -245,6 +260,16 @@ export const PERMISSION_GROUPS = [
     modulo: 'ventas',
     titulo: 'Ventas',
     permisos: [PERMISSIONS.VENTAS_VER, PERMISSIONS.VENTAS_CREAR, PERMISSIONS.VENTAS_ANULAR],
+  },
+  {
+    modulo: 'presupuestos',
+    titulo: 'Presupuestos',
+    permisos: [
+      PERMISSIONS.PRESUPUESTOS_VER,
+      PERMISSIONS.PRESUPUESTOS_CREAR,
+      PERMISSIONS.PRESUPUESTOS_ANULAR,
+      PERMISSIONS.PRESUPUESTOS_CONVERTIR,
+    ],
   },
   {
     modulo: 'caja',

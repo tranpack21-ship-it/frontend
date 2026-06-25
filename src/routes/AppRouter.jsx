@@ -13,6 +13,9 @@ import { StockAlertsPage } from '../pages/StockAlertsPage';
 import { SalesPage } from '../pages/SalesPage';
 import { SaleCreatePage } from '../pages/SaleCreatePage';
 import { SaleDetailPage } from '../pages/SaleDetailPage';
+import { QuotesPage } from '../pages/QuotesPage';
+import { QuoteCreatePage } from '../pages/QuoteCreatePage';
+import { QuoteDetailPage } from '../pages/QuoteDetailPage';
 import { CashPage } from '../pages/CashPage';
 import { CashSessionsPage } from '../pages/CashSessionsPage';
 import { CashSessionDetailPage } from '../pages/CashSessionDetailPage';
@@ -64,6 +67,13 @@ const salesPerms = [
   PERMISSIONS.VENTAS_ANULAR,
 ];
 
+const quotesPerms = [
+  PERMISSIONS.PRESUPUESTOS_VER,
+  PERMISSIONS.PRESUPUESTOS_CREAR,
+  PERMISSIONS.PRESUPUESTOS_ANULAR,
+  PERMISSIONS.PRESUPUESTOS_CONVERTIR,
+];
+
 const cashPerms = [
   PERMISSIONS.CAJA_VER,
   PERMISSIONS.CAJA_ABRIR,
@@ -93,6 +103,12 @@ export const AppRouter = () => (
             <Route path="/ventas" element={<SalesPage />} />
             <Route path="/ventas/nueva" element={<SaleCreatePage />} />
             <Route path="/ventas/:id" element={<SaleDetailPage />} />
+          </Route>
+
+          <Route element={<PermissionRoute permissions={quotesPerms} />}>
+            <Route path="/presupuestos" element={<QuotesPage />} />
+            <Route path="/presupuestos/nuevo" element={<QuoteCreatePage />} />
+            <Route path="/presupuestos/:id" element={<QuoteDetailPage />} />
           </Route>
 
           <Route element={<PermissionRoute permissions={cashPerms} />}>

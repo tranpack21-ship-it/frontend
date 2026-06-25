@@ -15,7 +15,7 @@ import { ProductMetaChips } from '../catalog/ProductMetaChips';
 
 const roundQty = (n, step = 0.001) => Math.round(n / step) * step;
 
-export const SaleCartLine = ({ item, onUpdate, onRemove, onModoChange }) => {
+export const SaleCartLine = ({ item, onUpdate, onRemove, onModoChange, readOnly = false }) => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const lineTotal = item.precio_unitario * item.cantidad - (item.descuento || 0);
   const stockWarning = getStockAddWarning(item, item.cantidad);
@@ -50,14 +50,15 @@ export const SaleCartLine = ({ item, onUpdate, onRemove, onModoChange }) => {
           <button
             type="button"
             onClick={() => onRemove(item.lineKey)}
-            className="shrink-0 p-2.5 -mr-1 text-red-600 hover:bg-red-50 rounded-xl touch-manipulation"
+            disabled={readOnly}
+            className={`shrink-0 p-2.5 -mr-1 text-red-600 hover:bg-red-50 rounded-xl touch-manipulation ${readOnly ? 'hidden' : ''}`}
             aria-label={`Quitar ${item.nombre}`}
           >
             <Trash2 className="w-5 h-5" />
           </button>
         </div>
 
-        {canToggleModo && (
+        {canToggleModo && !readOnly && (
           <div className="mt-3 inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-0.5 text-xs">
             <button
               type="button"
@@ -113,6 +114,9 @@ export const SaleCartLine = ({ item, onUpdate, onRemove, onModoChange }) => {
             <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-1 font-medium">
               {cantidadLabel}
             </p>
+            {readOnly ? (
+              <p className="text-base font-semibold tabular-nums py-2">{formatNumber(item.cantidad, 2)}</p>
+            ) : (
             <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50">
               <button
                 type="button"
@@ -144,6 +148,7 @@ export const SaleCartLine = ({ item, onUpdate, onRemove, onModoChange }) => {
                 <Plus className="w-5 h-5" />
               </button>
             </div>
+            )}
             {item.modo_venta === MODOS_VENTA.PAQUETE && (
               <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
                 = {formatNumber(inventoryQty, 2)} {item.unidad_medida || 'uds'} en stock
@@ -158,6 +163,7 @@ export const SaleCartLine = ({ item, onUpdate, onRemove, onModoChange }) => {
           </div>
         </div>
 
+        {!readOnly && (
         <button
           type="button"
           onClick={() => setAdvancedOpen((o) => !o)}
@@ -173,9 +179,10 @@ export const SaleCartLine = ({ item, onUpdate, onRemove, onModoChange }) => {
             </>
           )}
         </button>
+        )}
       </div>
 
-      {advancedOpen && (
+      {advancedOpen && !readOnly && (
         <div className="px-3 pb-3 sm:px-4 sm:pb-4 pt-0 grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/80">
           <CurrencyInput
             label="Precio u."

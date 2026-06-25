@@ -13,6 +13,7 @@ import {
   Warehouse,
   AlertTriangle,
   ShoppingCart,
+  ClipboardList,
   Wallet,
   BarChart3,
   ScrollText,
@@ -110,6 +111,12 @@ export const SidebarNav = ({ onNavigate }) => {
     PERMISSIONS.VENTAS_CREAR,
     PERMISSIONS.VENTAS_ANULAR
   );
+  const showQuotes = hasPermission(
+    PERMISSIONS.PRESUPUESTOS_VER,
+    PERMISSIONS.PRESUPUESTOS_CREAR,
+    PERMISSIONS.PRESUPUESTOS_ANULAR,
+    PERMISSIONS.PRESUPUESTOS_CONVERTIR
+  );
   const showCash = hasPermission(
     PERMISSIONS.CAJA_VER,
     PERMISSIONS.CAJA_ABRIR,
@@ -141,6 +148,13 @@ export const SidebarNav = ({ onNavigate }) => {
         <NavLink to="/ventas" className={linkClass} onClick={handleClick}>
           <ShoppingCart className="w-5 h-5 shrink-0" />
           Ventas
+        </NavLink>
+      )}
+
+      {showQuotes && (
+        <NavLink to="/presupuestos" className={linkClass} onClick={handleClick}>
+          <ClipboardList className="w-5 h-5 shrink-0" />
+          Presupuestos
         </NavLink>
       )}
 
