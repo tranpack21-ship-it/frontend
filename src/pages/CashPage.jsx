@@ -19,6 +19,7 @@ import { Pagination } from '../components/common/Pagination';
 import { usePaginatedList } from '../hooks/usePaginatedList';
 import { CashSummaryCards } from '../components/cash/CashSummaryCards';
 import { CashIncomeBreakdownModal } from '../components/cash/CashIncomeBreakdownModal';
+import { CashEfectivoBreakdownModal } from '../components/cash/CashEfectivoBreakdownModal';
 import { CashMovementsTable } from '../components/cash/CashMovementsTable';
 import { formatDate } from '../utils/formatDate';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -42,6 +43,7 @@ export const CashPage = () => {
   const [closeModal, setCloseModal] = useState(false);
   const [moveModal, setMoveModal] = useState(false);
   const [incomeModal, setIncomeModal] = useState(false);
+  const [efectivoModal, setEfectivoModal] = useState(false);
   const [montoApertura, setMontoApertura] = useState(0);
   const [montoCierre, setMontoCierre] = useState(0);
   const [movTipo, setMovTipo] = useState('ingreso');
@@ -220,6 +222,7 @@ export const CashPage = () => {
                 resumen={resumen}
                 sesion={sesion}
                 onShowIngresos={() => setIncomeModal(true)}
+                onShowEfectivo={() => setEfectivoModal(true)}
               />
             )}
 
@@ -288,6 +291,12 @@ export const CashPage = () => {
       <CashIncomeBreakdownModal
         isOpen={incomeModal}
         onClose={() => setIncomeModal(false)}
+        resumen={resumen}
+      />
+
+      <CashEfectivoBreakdownModal
+        isOpen={efectivoModal}
+        onClose={() => setEfectivoModal(false)}
         resumen={resumen}
       />
 

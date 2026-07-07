@@ -10,6 +10,7 @@ import { Badge } from '../components/ui/Badge';
 import { Pagination } from '../components/common/Pagination';
 import { CashSummaryCards } from '../components/cash/CashSummaryCards';
 import { CashIncomeBreakdownModal } from '../components/cash/CashIncomeBreakdownModal';
+import { CashEfectivoBreakdownModal } from '../components/cash/CashEfectivoBreakdownModal';
 import { CashMovementsTable } from '../components/cash/CashMovementsTable';
 import { formatDate } from '../utils/formatDate';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -21,6 +22,7 @@ export const CashSessionDetailPage = () => {
   const [detailLoading, setDetailLoading] = useState(true);
   const [error, setError] = useState('');
   const [incomeModal, setIncomeModal] = useState(false);
+  const [efectivoModal, setEfectivoModal] = useState(false);
 
   const listParams = useMemo(() => ({ sessionId: id }), [id]);
 
@@ -102,6 +104,7 @@ export const CashSessionDetailPage = () => {
               resumen={resumen}
               sesion={sesion}
               onShowIngresos={() => setIncomeModal(true)}
+              onShowEfectivo={() => setEfectivoModal(true)}
             />
 
             {sesion.estado === 'cerrada' && (
@@ -162,6 +165,12 @@ export const CashSessionDetailPage = () => {
       <CashIncomeBreakdownModal
         isOpen={incomeModal}
         onClose={() => setIncomeModal(false)}
+        resumen={resumen}
+      />
+
+      <CashEfectivoBreakdownModal
+        isOpen={efectivoModal}
+        onClose={() => setEfectivoModal(false)}
         resumen={resumen}
       />
     </div>
