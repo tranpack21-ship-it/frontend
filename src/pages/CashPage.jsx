@@ -228,14 +228,14 @@ export const CashPage = () => {
                 <p className="text-slate-500">Ingresos manuales</p>
                 <p className="font-semibold flex items-center gap-1 text-emerald-700">
                   <ArrowDownCircle className="w-4 h-4" />
-                  {formatCurrency(sesion.total_ingresos)}
+                  {formatCurrency(resumen?.total_ingresos_manuales ?? 0)}
                 </p>
               </div>
               <div>
                 <p className="text-slate-500">Egresos</p>
                 <p className="font-semibold flex items-center gap-1 text-red-700">
                   <ArrowUpCircle className="w-4 h-4" />
-                  {formatCurrency(sesion.total_egresos)}
+                  {formatCurrency(resumen?.total_egresos ?? sesion.total_egresos)}
                 </p>
               </div>
               <div>
