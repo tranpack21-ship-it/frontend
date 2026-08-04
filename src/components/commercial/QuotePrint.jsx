@@ -43,6 +43,7 @@ export const QuotePrint = ({ data, preview = false }) => {
           <tr className="border-b border-slate-300">
             <th className="text-left py-1">Producto</th>
             <th className="text-right py-1">Cant.</th>
+            <th className="text-right py-1">P. unit.</th>
             <th className="text-right py-1">Total</th>
           </tr>
         </thead>
@@ -52,12 +53,22 @@ export const QuotePrint = ({ data, preview = false }) => {
               <td className="py-1.5 pr-2">
                 <div>{line.producto_nombre}</div>
                 <div className="text-slate-400">{line.producto_codigo}</div>
+                {Number(line.descuento) > 0 && (
+                  <div className="text-slate-500">
+                    Desc. −{formatCurrency(line.descuento)}
+                  </div>
+                )}
               </td>
-              <td className="text-right py-1.5">
+              <td className="text-right py-1.5 whitespace-nowrap">
                 {formatNumber(line.cantidad, 2)}
                 {line.modo_venta === 'paquete' ? ' paq.' : ''}
               </td>
-              <td className="text-right py-1.5">{formatCurrency(line.subtotal)}</td>
+              <td className="text-right py-1.5 whitespace-nowrap">
+                {formatCurrency(line.precio_unitario)}
+              </td>
+              <td className="text-right py-1.5 whitespace-nowrap">
+                {formatCurrency(line.subtotal)}
+              </td>
             </tr>
           ))}
         </tbody>

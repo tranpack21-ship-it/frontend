@@ -1,6 +1,11 @@
-import { formatCurrency, formatNumber } from './formatCurrency';
+import { formatCurrency } from './formatCurrency';
 import { formatDate } from './formatDate';
 import { METODO_PAGO_LABELS } from '../constants/permissions';
+import {
+  buildCommercialLineRows,
+  COMMERCIAL_LINE_HEAD,
+  commercialLineColumnStyles,
+} from './commercialPdfLines';
 
 const tipoLabel = { ticket: 'TICKET', factura: 'FACTURA', boleta: 'BOLETA' };
 
@@ -13,7 +18,7 @@ export const generateReceiptPdfBlob = async (data) => {
 
   const { comprobante, venta, detalle } = data;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const margin = 18;
+  const margin = 14;
   let y = margin;
 
   doc.setFontSize(18);
@@ -56,7 +61,7 @@ export const generateReceiptPdfBlob = async (data) => {
     doc.setFont('helvetica', 'bold');
     doc.text(label, margin, y);
     doc.setFont('helvetica', 'normal');
-    doc.text(String(value), margin + 22, y);
+    doc.text(String(value), margin + 24, y);
     y += 5;
   });
 
@@ -76,21 +81,19 @@ export const generateReceiptPdfBlob = async (data) => {
 
   autoTable(doc, {
     startY: y,
-    head: [['Producto', 'Cant.', 'Total']],
-    body: (detalle || []).map((line) => [
-      `${line.producto_nombre}\n${line.producto_codigo}`,
-      formatNumber(line.cantidad, 2),
-      formatCurrency(line.subtotal),
-    ]),
-    styles: { fontSize: 8, cellPadding: 2 },
+    margin: { left: margin, right: margin },
+    head: [COMMERCIAL_LINE_HEAD],
+    body: buildCommercialLineRows(detalle),
+    styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' },
     headStyles: { fillColor: [234, 179, 8], textColor: [15, 23, 42] },
     columnStyles: {
-      1: { halign: 'right' },
-      2: { halign: 'right' },
+      0: { cellWidth: 'auto' },
+      ...commercialLineColumnStyles,
     },
   });
 
   y = doc.lastAutoTable.finalY + 8;
+  const rightX = 210 - margin;
 
   const totals = [
     ['Subtotal', formatCurrency(venta.subtotal)],
@@ -103,7 +106,7 @@ export const generateReceiptPdfBlob = async (data) => {
     doc.setFont('helvetica', isTotal ? 'bold' : 'normal');
     doc.setFontSize(isTotal ? 12 : 10);
     doc.text(label, margin, y);
-    doc.text(value, 190, y, { align: 'right' });
+    doc.text(value, rightX, y, { align: 'right' });
     y += isTotal ? 7 : 5;
   });
 
