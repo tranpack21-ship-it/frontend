@@ -64,8 +64,13 @@ const MovementCard = ({ movement: m }) => (
         Saldo {formatCurrency(m.saldo_posterior)}
       </span>
     </div>
-    {(m.venta_numero || m.observaciones) && (
+    {(m.metodo_cobro_nombre || m.metodo_cobro || m.venta_numero || m.observaciones) && (
       <div className="text-xs text-slate-600 pt-1 border-t border-slate-100">
+        {(m.metodo_cobro_nombre || m.metodo_cobro) && m.tipo === 'pago' && (
+          <p className="font-medium text-slate-700">
+            {m.metodo_cobro_nombre || m.metodo_cobro}
+          </p>
+        )}
         {m.venta_numero && (
           <Link to={`/ventas/${m.venta_id}`} className="text-brand-700 font-medium hover:underline">
             {m.venta_numero}
@@ -143,9 +148,9 @@ export const AccountClientPage = () => {
     refreshMovements();
   };
 
-  const cobroMetodoOptions = paymentMethods
-    .filter((m) => !m.genera_cargo_cc)
-    .map((m) => ({ value: m.codigo, label: m.nombre }));
+  const cobroMetodos = paymentMethods.filter((m) => !m.genera_cargo_cc);
+  const defaultCobroMetodo =
+    cobroMetodos.find((m) => m.codigo === defaultMethod?.codigo) || cobroMetodos[0];
 
   const openPayModal = () => {
     setPayFormKey((k) => k + 1);
@@ -337,6 +342,11 @@ export const AccountClientPage = () => {
                           {formatCurrency(m.saldo_posterior)}
                         </td>
                         <td className="px-4 py-3 text-slate-600 text-xs max-w-[220px]">
+                          {(m.metodo_cobro_nombre || m.metodo_cobro) && m.tipo === 'pago' && (
+                            <span className="block font-medium text-slate-700 mb-0.5">
+                              {m.metodo_cobro_nombre || m.metodo_cobro}
+                            </span>
+                          )}
                           {m.venta_numero && (
                             <Link
                               to={`/ventas/${m.venta_id}`}
@@ -377,7 +387,7 @@ export const AccountClientPage = () => {
         isOpen={payModal}
         onClose={() => setPayModal(false)}
         title="Registrar cobro"
-        size="md"
+        size="lg"
         stickyFooter
         footer={
           <>
@@ -394,8 +404,8 @@ export const AccountClientPage = () => {
           key={payFormKey}
           formId="account-payment-form"
           saldoPendiente={saldo}
-          metodoOptions={cobroMetodoOptions}
-          defaultMetodo={defaultMethod?.codigo || 'efectivo'}
+          paymentMethods={cobroMetodos}
+          defaultMetodo={defaultCobroMetodo?.codigo || 'efectivo'}
           onSubmit={handlePay}
         />
       </Modal>
