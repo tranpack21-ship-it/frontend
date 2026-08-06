@@ -23,17 +23,17 @@ const integerCurrencyFormatter = new Intl.NumberFormat(APP_LOCALE, {
 
 const numberFormatters = new Map();
 
-const getNumberFormatter = (decimals) => {
-  if (!numberFormatters.has(decimals)) {
+const getNumberFormatter = (maxDecimals) => {
+  if (!numberFormatters.has(maxDecimals)) {
     numberFormatters.set(
-      decimals,
+      maxDecimals,
       new Intl.NumberFormat(APP_LOCALE, {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: maxDecimals,
       }),
     );
   }
-  return numberFormatters.get(decimals);
+  return numberFormatters.get(maxDecimals);
 };
 
 /**
@@ -52,9 +52,13 @@ export const formatCurrency = (value, options = {}) => {
 
 /**
  * Formatea números con separadores argentinos (punto miles, coma decimal).
+ * No fuerza decimales innecesarios: 5 → "5", 5.5 → "5,5", 5.25 → "5,25".
+ * @param {number|string|null|undefined} value
+ * @param {number} [maxDecimals=3] máximo de decimales a mostrar
  */
-export const formatNumber = (value, decimals = 2) => {
+export const formatNumber = (value, maxDecimals = 3) => {
   const num = Number(value);
   if (Number.isNaN(num)) return '—';
+  const decimals = Math.max(0, Number(maxDecimals) || 0);
   return getNumberFormatter(decimals).format(num);
 };

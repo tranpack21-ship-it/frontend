@@ -24,19 +24,56 @@ export const getPrecioForModo = (product, modoVenta) =>
     ? Number(product.precio_venta_paquete)
     : Number(product.precio_venta);
 
-export const getInventoryQty = (item) =>
-  item.modo_venta === MODOS_VENTA.PAQUETE
-    ? Number(item.cantidad) * Number(item.unidades_por_paquete || 1)
-    : Number(item.cantidad);
+export const getInventoryQty = (item) => {
+  if (item.cantidad_inventario != null && item.cantidad_inventario !== '') {
+    return Number(item.cantidad_inventario);
+  }
+  if (item.modo_venta === MODOS_VENTA.PAQUETE) {
+    return Number(item.cantidad) * Number(item.unidades_por_paquete || 1);
+  }
+  return Number(item.cantidad);
+};
 
 export const getCantidadLabel = (item) =>
   item.modo_venta === MODOS_VENTA.PAQUETE ? 'Paquetes' : item.unidad_medida || 'uds';
 
 export const formatPaqueteHint = (product) => {
   if (!hasPaquetePricing(product)) return null;
-  const units = formatNumber(product.unidades_por_paquete, 0);
+  const units = formatNumber(product.unidades_por_paquete, 3);
   const unit = product.unidad_medida || 'uds';
   return `1 paq. = ${units} ${unit}`;
+};
+
+/**
+ * Texto claro de cantidad + tipo (suelto/paquete) para UI, PDF e impresión.
+ * Ej: "1 paquete (20 uds)" o "5 uds"
+ */
+export const formatQuantityDisplay = (line, options = {}) => {
+  const unit = options.unitLabel || line.unidad_medida || 'uds';
+  const qty = Number(line.cantidad);
+  const modo = line.modo_venta === MODOS_VENTA.PAQUETE ? MODOS_VENTA.PAQUETE : MODOS_VENTA.SUELTO;
+  const qtyText = formatNumber(qty, 3);
+
+  if (modo === MODOS_VENTA.PAQUETE) {
+    const inventory = getInventoryQty(line);
+    const invText = formatNumber(inventory, 3);
+    const packWord = Math.abs(qty) === 1 ? 'paquete' : 'paquetes';
+    return {
+      modo,
+      primary: `${qtyText} ${packWord}`,
+      secondary: `(${invText} ${unit})`,
+      compact: `${qtyText} ${packWord} (${invText} ${unit})`,
+      modoLabel: MODO_VENTA_LABELS.paquete,
+    };
+  }
+
+  return {
+    modo,
+    primary: qtyText,
+    secondary: unit,
+    compact: `${qtyText} ${unit}`,
+    modoLabel: MODO_VENTA_LABELS.suelto,
+  };
 };
 
 export const formatPrecioResumen = (product, modoVenta) => {

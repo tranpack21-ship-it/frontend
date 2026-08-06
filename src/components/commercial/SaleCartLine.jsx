@@ -116,7 +116,7 @@ export const SaleCartLine = ({ item, onUpdate, onRemove, onModoChange, readOnly 
               {cantidadLabel}
             </p>
             {readOnly ? (
-              <p className="text-base font-semibold tabular-nums py-2">{formatNumber(item.cantidad, 2)}</p>
+              <p className="text-base font-semibold tabular-nums py-2">{formatNumber(item.cantidad, 3)}</p>
             ) : (
             <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50">
               <button
@@ -154,7 +154,9 @@ export const SaleCartLine = ({ item, onUpdate, onRemove, onModoChange, readOnly 
             )}
             {item.modo_venta === MODOS_VENTA.PAQUETE && (
               <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
-                = {formatNumber(inventoryQty, 2)} {item.unidad_medida || 'uds'} en stock
+                {formatNumber(item.cantidad, 3)}{' '}
+                {Number(item.cantidad) === 1 ? 'paquete' : 'paquetes'} (
+                {formatNumber(inventoryQty, 3)} {item.unidad_medida || 'uds'} en stock)
               </p>
             )}
           </div>
