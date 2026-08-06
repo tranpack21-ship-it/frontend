@@ -4,7 +4,6 @@ import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { ClientSearchSelect } from './ClientSearchSelect';
-import { PRICE_INPUT_HINT } from '../../utils/currencyInput';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 const VALIDEZ_OPTIONS = [
@@ -115,7 +114,6 @@ export const QuoteCheckoutModal = ({
             label="Descuento global"
             value={descuentoGlobal}
             onChange={onDescuentoChange}
-            hint={PRICE_INPUT_HINT}
             max={subtotal}
           />
           <div className="flex justify-between items-center pt-2 border-t border-slate-200">

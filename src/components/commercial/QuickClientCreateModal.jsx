@@ -9,7 +9,6 @@ import { CurrencyInput } from '../ui/CurrencyInput';
 import { Alert } from '../ui/Alert';
 import { clientService } from '../../services/clientService';
 import { quickClientFormSchema } from '../../validations/quickClientSchema';
-import { PRICE_INPUT_HINT } from '../../utils/currencyInput';
 import { getErrorMessage } from '../../utils/getErrorMessage';
 
 export const QuickClientCreateModal = ({
@@ -140,7 +139,7 @@ export const QuickClientCreateModal = ({
                 id="quick-client-limite"
                 label="Límite cuenta corriente"
                 size="lg"
-                hint={`Opcional. ${PRICE_INPUT_HINT}`}
+                hint="Opcional"
                 allowEmpty
                 emptyZero
                 value={field.value === '' || field.value == null ? null : field.value}

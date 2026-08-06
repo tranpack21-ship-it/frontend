@@ -49,31 +49,66 @@ export const formatPaqueteHint = (product) => {
  * Ej: "1 paquete (20 uds)" o "5 uds"
  */
 export const formatQuantityDisplay = (line, options = {}) => {
-  const unit = options.unitLabel || line.unidad_medida || 'uds';
+  const baseUnit = options.unitLabel || line.unidad_medida || 'uds';
   const qty = Number(line.cantidad);
   const modo = line.modo_venta === MODOS_VENTA.PAQUETE ? MODOS_VENTA.PAQUETE : MODOS_VENTA.SUELTO;
   const qtyText = formatNumber(qty, 3);
+
+  const pluralizeUnit = (n, unit) => {
+    const u = String(unit || 'uds').trim();
+    if (!u) return 'uds';
+    if (Math.abs(n) === 1) {
+      if (u === 'unidades') return 'unidad';
+      if (u === 'uds') return 'ud';
+      return u;
+    }
+    if (u === 'unidad') return 'unidades';
+    if (u === 'ud') return 'uds';
+    return u;
+  };
 
   if (modo === MODOS_VENTA.PAQUETE) {
     const inventory = getInventoryQty(line);
     const invText = formatNumber(inventory, 3);
     const packWord = Math.abs(qty) === 1 ? 'paquete' : 'paquetes';
+    const unitWord = pluralizeUnit(inventory, baseUnit);
     return {
       modo,
       primary: `${qtyText} ${packWord}`,
-      secondary: `(${invText} ${unit})`,
-      compact: `${qtyText} ${packWord} (${invText} ${unit})`,
+      secondary: `(${invText} ${unitWord})`,
+      compact: `${qtyText} ${packWord} (${invText} ${unitWord})`,
       modoLabel: MODO_VENTA_LABELS.paquete,
     };
   }
 
+  const unitWord = pluralizeUnit(qty, baseUnit);
   return {
     modo,
     primary: qtyText,
-    secondary: unit,
-    compact: `${qtyText} ${unit}`,
+    secondary: unitWord,
+    compact: `${qtyText} ${unitWord}`,
     modoLabel: MODO_VENTA_LABELS.suelto,
   };
+};
+
+/** Texto corto para listados de catálogo: "1 paq. = 20 uds" */
+export const formatProductPackageBadge = (product) => {
+  if (!hasPaquetePricing(product)) return null;
+  const units = formatNumber(product.unidades_por_paquete, 3);
+  const unit = product.unidad_medida || 'uds';
+  const unitWord =
+    Math.abs(Number(product.unidades_por_paquete)) === 1
+      ? unit === 'unidades'
+        ? 'unidad'
+        : unit === 'uds'
+          ? 'ud'
+          : unit
+      : unit === 'unidad'
+        ? 'unidades'
+        : unit === 'ud'
+          ? 'uds'
+          : unit;
+  return `1 paq. = ${units} ${unitWord}`;
 };
 
 export const formatPrecioResumen = (product, modoVenta) => {

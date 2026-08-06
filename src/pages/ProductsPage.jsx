@@ -21,6 +21,7 @@ import { ProductForm } from '../components/forms/ProductForm';
 import { ProductImage } from '../components/catalog/ProductImage';
 import { ProductMetaChips } from '../components/catalog/ProductMetaChips';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
+import { formatProductPackageBadge, hasPaquetePricing } from '../utils/productPricing';
 import { getErrorMessage } from '../utils/getErrorMessage';
 
 export const ProductsPage = () => {
@@ -94,9 +95,12 @@ export const ProductsPage = () => {
         talle: prod.talle || '',
         categoria_id: prod.categoria_id,
         precio_venta: prod.precio_venta,
-        venta_por_paquete: prod.precio_venta_paquete != null && prod.precio_venta_paquete > 0,
+        venta_por_paquete:
+          prod.precio_venta_paquete != null &&
+          Number(prod.precio_venta_paquete) > 0 &&
+          Number(prod.unidades_por_paquete) > 0,
         precio_venta_paquete: prod.precio_venta_paquete ?? 0,
-        unidades_por_paquete: prod.unidades_por_paquete ?? 1,
+        unidades_por_paquete: Number(prod.unidades_por_paquete) > 0 ? Number(prod.unidades_por_paquete) : 1,
         precio_costo: prod.precio_costo,
         stock_minimo: prod.stock_minimo,
         unidad_medida: prod.unidad_medida,
@@ -299,6 +303,15 @@ export const ProductsPage = () => {
                           <p className="font-medium text-slate-800">{prod.nombre}</p>
                           <p className="text-xs text-slate-400 capitalize">{prod.unidad_medida}</p>
                           <ProductMetaChips color={prod.color} talle={prod.talle} className="mt-1" />
+                          {hasPaquetePricing(prod) && (
+                            <p className="mt-1 text-xs font-medium text-brand-700">
+                              Paquete · {formatProductPackageBadge(prod)}
+                              <span className="text-slate-500 font-normal">
+                                {' '}
+                                · {formatCurrency(prod.precio_venta_paquete)}
+                              </span>
+                            </p>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-slate-600">{prod.categoria_nombre}</td>
                         <td className="px-4 py-3 font-medium text-slate-800">
@@ -421,6 +434,7 @@ export const ProductsPage = () => {
         }
       >
         <ProductForm
+          key={editing ? `edit-${editing.id}` : 'new-product'}
           formId="product-form"
           categories={categories}
           onCategoryCreated={handleCategoryCreated}

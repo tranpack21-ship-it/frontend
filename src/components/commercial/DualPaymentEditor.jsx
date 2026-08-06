@@ -1,32 +1,36 @@
 import { useMemo } from 'react';
-import { Split, Banknote } from 'lucide-react';
+import { Split } from 'lucide-react';
 import { CurrencyInput } from '../ui/CurrencyInput';
-import { Button } from '../ui/Button';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { PRICE_INPUT_HINT } from '../../utils/currencyInput';
 
 const newLineId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : `pay-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
+const roundMoney = (n) => Math.round(Number(n) * 100) / 100;
+
 export const createPaymentLine = (metodoPago, monto = 0, montoRecibido = null) => ({
   id: newLineId(),
   metodo_pago: metodoPago,
   monto: Number(monto) || 0,
+  // Se mantiene por compatibilidad con el backend; la UI ya no pide "recibido/vuelto"
   monto_recibido: montoRecibido != null ? Number(montoRecibido) : null,
 });
 
+const withSilentRecibido = (method, monto) =>
+  method?.requiere_monto_recibido ? Number(monto) || 0 : null;
+
 const chipClass = (active) =>
-  `px-2.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all border touch-manipulation ${
+  `px-2 py-1.5 rounded-lg text-xs font-medium transition-all border touch-manipulation truncate max-w-full ${
     active
       ? 'bg-brand-500 text-slate-900 border-brand-500 shadow-sm'
       : 'bg-white text-slate-700 border-slate-200 hover:border-brand-300'
   }`;
 
 /**
- * Editor compacto de 1 o 2 métodos de pago.
- * Pensado para cobros rápidos (ventas y cuenta corriente).
+ * Editor compacto de 1 o 2 métodos de pago (lado a lado).
+ * @param {boolean} autoFillRemainder — solo ventas: al editar un monto, completa el otro
  */
 export const DualPaymentEditor = ({
   paymentMethods = [],
@@ -36,9 +40,8 @@ export const DualPaymentEditor = ({
   lines,
   onLinesChange,
   defaultMethodCode,
-  /** Oculta hints de cuenta corriente (uso en cobros CC) */
   hideCuentaCorrienteHints = false,
-  /** Título de sección */
+  autoFillRemainder = false,
   title = 'Forma de pago',
 }) => {
   const methodsByCode = useMemo(
@@ -50,32 +53,37 @@ export const DualPaymentEditor = ({
     () => lines.reduce((acc, line) => acc + (Number(line.monto) || 0), 0),
     [lines]
   );
-  const remainder = Math.round((total - allocated) * 100) / 100;
+  const remainder = roundMoney(total - allocated);
   const isBalanced = Math.abs(remainder) < 0.01;
-
-  const updateLine = (id, patch) => {
-    onLinesChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
-  };
 
   const handleSingleMethod = (code) => {
     const method = methodsByCode[code];
-    onLinesChange([
-      createPaymentLine(code, total, method?.requiere_monto_recibido ? total : null),
-    ]);
+    onLinesChange([createPaymentLine(code, total, withSilentRecibido(method, total))]);
   };
 
   const enableSplit = () => {
     onSplitModeChange(true);
-    const firstCode = lines[0]?.metodo_pago || defaultMethodCode || paymentMethods[0]?.codigo || 'efectivo';
+    const firstCode =
+      lines[0]?.metodo_pago || defaultMethodCode || paymentMethods[0]?.codigo || 'efectivo';
     const secondCode =
       paymentMethods.find((m) => m.codigo !== firstCode)?.codigo || firstCode;
-    const half = Math.round((total / 2) * 100) / 100;
-    const rest = Math.round((total - half) * 100) / 100;
     const m1 = methodsByCode[firstCode];
     const m2 = methodsByCode[secondCode];
+
+    if (autoFillRemainder) {
+      // Izquierda vacía para tipear; derecha queda con el total hasta que se edite
+      onLinesChange([
+        createPaymentLine(firstCode, 0, withSilentRecibido(m1, 0)),
+        createPaymentLine(secondCode, total, withSilentRecibido(m2, total)),
+      ]);
+      return;
+    }
+
+    const half = roundMoney(total / 2);
+    const rest = roundMoney(total - half);
     onLinesChange([
-      createPaymentLine(firstCode, half, m1?.requiere_monto_recibido ? half : null),
-      createPaymentLine(secondCode, rest, m2?.requiere_monto_recibido ? rest : null),
+      createPaymentLine(firstCode, half, withSilentRecibido(m1, half)),
+      createPaymentLine(secondCode, rest, withSilentRecibido(m2, rest)),
     ]);
   };
 
@@ -88,7 +96,6 @@ export const DualPaymentEditor = ({
   const setLineMethod = (line, code) => {
     const other = lines.find((l) => l.id !== line.id);
     if (other && other.metodo_pago === code) {
-      // Intercambiar si el otro ya usa ese método
       onLinesChange(
         lines.map((l) => {
           if (l.id === line.id) {
@@ -96,7 +103,7 @@ export const DualPaymentEditor = ({
             return {
               ...l,
               metodo_pago: code,
-              monto_recibido: m?.requiere_monto_recibido ? l.monto : null,
+              monto_recibido: withSilentRecibido(m, l.monto),
             };
           }
           if (l.id === other.id) {
@@ -104,7 +111,7 @@ export const DualPaymentEditor = ({
             return {
               ...l,
               metodo_pago: line.metodo_pago,
-              monto_recibido: m?.requiere_monto_recibido ? l.monto : null,
+              monto_recibido: withSilentRecibido(m, l.monto),
             };
           }
           return l;
@@ -113,54 +120,54 @@ export const DualPaymentEditor = ({
       return;
     }
     const m = methodsByCode[code];
-    updateLine(line.id, {
-      metodo_pago: code,
-      monto_recibido: m?.requiere_monto_recibido ? line.monto : null,
-    });
+    onLinesChange(
+      lines.map((l) =>
+        l.id === line.id
+          ? {
+              ...l,
+              metodo_pago: code,
+              monto_recibido: withSilentRecibido(m, l.monto),
+            }
+          : l
+      )
+    );
   };
 
-  const fillRemainder = (lineId) => {
-    const others = lines
-      .filter((l) => l.id !== lineId)
-      .reduce((acc, l) => acc + (Number(l.monto) || 0), 0);
-    const next = Math.max(0, Math.round((total - others) * 100) / 100);
+  const setLineAmount = (lineId, rawAmount) => {
+    const monto = Math.max(0, roundMoney(rawAmount ?? 0));
     const line = lines.find((l) => l.id === lineId);
-    const method = methodsByCode[line?.metodo_pago];
-    updateLine(lineId, {
-      monto: next,
-      monto_recibido: method?.requiere_monto_recibido ? next : null,
-    });
-  };
-
-  const renderCashReceived = (line) => {
+    if (!line) return;
     const method = methodsByCode[line.metodo_pago];
-    if (!method?.requiere_monto_recibido) return null;
-    const vuelto = Math.max(0, Number(line.monto_recibido ?? line.monto) - Number(line.monto));
-    return (
-      <div className="mt-2 flex flex-wrap items-end gap-2">
-        <div className="flex-1 min-w-[8rem]">
-          <CurrencyInput
-            label="Recibido"
-            hint={PRICE_INPUT_HINT}
-            size="md"
-            value={line.monto_recibido ?? line.monto}
-            onChange={(v) => updateLine(line.id, { monto_recibido: v ?? 0 })}
-          />
-        </div>
-        <div className="pb-1 text-sm text-slate-700 flex items-center gap-1">
-          <Banknote className="w-4 h-4 text-emerald-600" />
-          Vuelto <strong className="tabular-nums text-emerald-800">{formatCurrency(vuelto)}</strong>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mb-0.5"
-          onClick={() => updateLine(line.id, { monto_recibido: line.monto })}
-        >
-          Exacto
-        </Button>
-      </div>
+
+    if (!autoFillRemainder || lines.length < 2) {
+      onLinesChange(
+        lines.map((l) =>
+          l.id === lineId
+            ? { ...l, monto, monto_recibido: withSilentRecibido(method, monto) }
+            : l
+        )
+      );
+      return;
+    }
+
+    const capped = Math.min(monto, roundMoney(total));
+    const otherMonto = Math.max(0, roundMoney(total - capped));
+    onLinesChange(
+      lines.map((l) => {
+        if (l.id === lineId) {
+          return {
+            ...l,
+            monto: capped,
+            monto_recibido: withSilentRecibido(method, capped),
+          };
+        }
+        const otherMethod = methodsByCode[l.metodo_pago];
+        return {
+          ...l,
+          monto: otherMonto,
+          monto_recibido: withSilentRecibido(otherMethod, otherMonto),
+        };
+      })
     );
   };
 
@@ -210,73 +217,57 @@ export const DualPaymentEditor = ({
               );
             })}
           </div>
-          {lines[0] && renderCashReceived(lines[0])}
           {!hideCuentaCorrienteHints && methodsByCode[lines[0]?.metodo_pago]?.genera_cargo_cc && (
             <p className="text-xs text-sky-700">Se cargará a la cuenta corriente del cliente.</p>
           )}
         </>
       ) : (
         <div className="space-y-2">
-          {lines.slice(0, 2).map((line, index) => {
-            const method = methodsByCode[line.metodo_pago];
-            return (
-              <div
-                key={line.id}
-                className="rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 space-y-2"
-              >
-                <div className="flex items-center justify-between gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            {lines.slice(0, 2).map((line, index) => {
+              const method = methodsByCode[line.metodo_pago];
+              return (
+                <div
+                  key={line.id}
+                  className="rounded-xl border border-slate-200 bg-slate-50/80 p-2.5 space-y-2 min-w-0"
+                >
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                     Parte {index + 1}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => fillRemainder(line.id)}
-                    className="text-[11px] font-medium text-brand-700 hover:underline"
-                  >
-                    Completar resto
-                  </button>
+                  <div className="flex flex-col gap-1">
+                    {paymentMethods.map((m) => (
+                      <button
+                        key={m.codigo}
+                        type="button"
+                        onClick={() => setLineMethod(line, m.codigo)}
+                        className={chipClass(line.metodo_pago === m.codigo)}
+                      >
+                        {m.nombre}
+                      </button>
+                    ))}
+                  </div>
+                  <CurrencyInput
+                    label="Monto"
+                    size="md"
+                    value={line.monto}
+                    onChange={(v) => setLineAmount(line.id, v)}
+                  />
+                  {!hideCuentaCorrienteHints && method?.genera_cargo_cc && (
+                    <p className="text-[11px] text-sky-700">Cargo a CC</p>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {paymentMethods.map((m) => (
-                    <button
-                      key={m.codigo}
-                      type="button"
-                      onClick={() => setLineMethod(line, m.codigo)}
-                      className={chipClass(line.metodo_pago === m.codigo)}
-                    >
-                      {m.nombre}
-                    </button>
-                  ))}
-                </div>
-                <CurrencyInput
-                  label="Monto"
-                  hint={PRICE_INPUT_HINT}
-                  size="md"
-                  value={line.monto}
-                  onChange={(v) => {
-                    const monto = v ?? 0;
-                    updateLine(line.id, {
-                      monto,
-                      monto_recibido: method?.requiere_monto_recibido ? monto : null,
-                    });
-                  }}
-                />
-                {renderCashReceived(line)}
-                {!hideCuentaCorrienteHints && method?.genera_cargo_cc && (
-                  <p className="text-xs text-sky-700">Cargo a cuenta corriente.</p>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
 
           <div
-            className={`text-sm font-medium tabular-nums text-center py-1 ${
+            className={`text-sm font-medium tabular-nums text-center py-0.5 ${
               isBalanced ? 'text-emerald-700' : 'text-amber-700'
             }`}
           >
             {isBalanced
               ? `Total cubierto · ${formatCurrency(total)}`
-              : `Falta asignar ${formatCurrency(Math.abs(remainder))}`}
+              : `Falta ${formatCurrency(Math.abs(remainder))}`}
           </div>
         </div>
       )}
@@ -284,5 +275,4 @@ export const DualPaymentEditor = ({
   );
 };
 
-/** Reexport con nombre histórico para no romper imports existentes */
 export const SalePaymentSplitEditor = DualPaymentEditor;

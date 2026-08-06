@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { Input } from '../ui/Input';
-import { PRICE_INPUT_HINT } from '../../utils/currencyInput';
 
 const ADJUST_OPTIONS = [
   {
@@ -107,7 +106,6 @@ export const AccountAdjustmentForm = ({
             id="adj-monto"
             label="Monto"
             size="md"
-            hint={PRICE_INPUT_HINT}
             min={0.01}
             value={field.value}
             onChange={field.onChange}

@@ -11,7 +11,6 @@ import { CategoryPicker } from '../catalog/CategoryPicker';
 import { ProductFormPreview } from '../catalog/ProductFormPreview';
 import { productFormSchema } from '../../validations/catalogSchemas';
 import { UNIDADES_MEDIDA } from '../../constants/permissions';
-import { PRICE_INPUT_HINT } from '../../utils/currencyInput';
 
 export const ProductForm = ({
   formId = 'product-form',
@@ -194,7 +193,6 @@ export const ProductForm = ({
                   <CurrencyInput
                     id="precio_venta"
                     label={`Precio suelto (por ${unidadMedida || 'unidad'})`}
-                    hint={PRICE_INPUT_HINT}
                     size="md"
                     emptyZero
                     value={field.value}
@@ -211,7 +209,6 @@ export const ProductForm = ({
                   <CurrencyInput
                     id="precio_costo"
                     label="Precio costo"
-                    hint={PRICE_INPUT_HINT}
                     size="md"
                     emptyZero
                     value={field.value}
@@ -246,7 +243,6 @@ export const ProductForm = ({
                     <CurrencyInput
                       id="precio_venta_paquete"
                       label="Precio del paquete completo"
-                      hint={PRICE_INPUT_HINT}
                       size="md"
                       emptyZero
                       value={field.value}
@@ -256,16 +252,31 @@ export const ProductForm = ({
                     />
                   )}
                 />
-                <Input
-                  id="unidades_por_paquete"
-                  label={`Unidades por paquete (${unidadMedida || 'unidad'})`}
-                  type="number"
-                  step="0.001"
-                  min="0.001"
-                  size="md"
-                  hint="Cuántas unidades de stock descuenta 1 paquete"
-                  error={errors.unidades_por_paquete?.message}
-                  {...register('unidades_por_paquete')}
+                <Controller
+                  name="unidades_por_paquete"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      id="unidades_por_paquete"
+                      label={`Unidades por paquete (${unidadMedida || 'unidad'})`}
+                      type="number"
+                      step="0.001"
+                      min="0.001"
+                      size="md"
+                      emptyZero={false}
+                      hint="Cuántas unidades de stock descuenta 1 paquete"
+                      error={errors.unidades_por_paquete?.message}
+                      name={field.name}
+                      value={field.value}
+                      onChange={(e) => {
+                        const raw = e?.target?.value;
+                        const num = raw === '' || raw == null ? '' : Number(raw);
+                        field.onChange(num === '' || Number.isNaN(num) ? '' : num);
+                      }}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  )}
                 />
               </div>
             )}

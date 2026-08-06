@@ -6,7 +6,6 @@ import { Select } from '../ui/Select';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { ClientSearchSelect } from './ClientSearchSelect';
 import { DualPaymentEditor } from './DualPaymentEditor';
-import { PRICE_INPUT_HINT } from '../../utils/currencyInput';
 import { Alert } from '../ui/Alert';
 import { formatCurrency } from '../../utils/formatCurrency';
 
@@ -98,6 +97,7 @@ export const SaleCheckoutModal = ({
           lines={paymentLines}
           onLinesChange={onPaymentLinesChange}
           defaultMethodCode={defaultMethodCode}
+          autoFillRemainder
         />
 
         <div className="rounded-xl bg-slate-900 text-white px-3.5 py-3 flex items-center justify-between gap-3">
@@ -173,7 +173,6 @@ export const SaleCheckoutModal = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-slate-100 p-3">
             <CurrencyInput
               label="Descuento global"
-              hint={PRICE_INPUT_HINT}
               size="md"
               value={descuentoGlobal}
               onChange={(v) => onDescuentoChange(v ?? 0)}

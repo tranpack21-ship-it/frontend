@@ -109,9 +109,8 @@ export const clampCurrencyValue = (value, { min, max } = {}) => {
   return n;
 };
 
-/** Hint unificado para campos de monto */
-export const PRICE_INPUT_HINT =
-  'Formato argentino: punto para miles y coma para decimales (ej. 12.500,50).';
+/** @deprecated Ya no se muestra en UI */
+export const PRICE_INPUT_HINT = '';
 
 /** @deprecated use PRICE_INPUT_HINT */
 export const CURRENCY_INPUT_HINT = PRICE_INPUT_HINT;

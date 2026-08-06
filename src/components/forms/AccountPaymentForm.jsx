@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { DualPaymentEditor, createPaymentLine } from '../commercial/DualPaymentEditor';
-import { PRICE_INPUT_HINT } from '../../utils/currencyInput';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 export const AccountPaymentForm = ({
@@ -129,7 +128,6 @@ export const AccountPaymentForm = ({
         id="pay-monto"
         label="Monto a cobrar"
         size="md"
-        hint={PRICE_INPUT_HINT}
         min={0.01}
         max={saldoPendiente}
         value={monto}
@@ -146,6 +144,7 @@ export const AccountPaymentForm = ({
         onLinesChange={setLines}
         defaultMethodCode={defaultCode}
         hideCuentaCorrienteHints
+        autoFillRemainder={false}
       />
 
       <p className="text-xs text-slate-500 -mt-1">

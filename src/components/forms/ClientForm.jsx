@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { UserCheck, UserX } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
-import { PRICE_INPUT_HINT } from '../../utils/currencyInput';
 import { Select } from '../ui/Select';
 import { ClientFormPreview } from '../commercial/ClientFormPreview';
 import { clientFormSchema } from '../../validations/commercialSchemas';
@@ -158,7 +157,7 @@ export const ClientForm = ({
                   id="limite_credito"
                   label="Límite de crédito"
                   size="md"
-                  hint={`Opcional. Máximo en cuenta corriente. ${PRICE_INPUT_HINT}`}
+                  hint="Opcional. Máximo en cuenta corriente."
                   allowEmpty
                   emptyZero
                   value={field.value === '' || field.value == null ? null : field.value}

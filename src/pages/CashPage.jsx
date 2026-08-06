@@ -23,7 +23,6 @@ import { CashEfectivoBreakdownModal } from '../components/cash/CashEfectivoBreak
 import { CashMovementsTable } from '../components/cash/CashMovementsTable';
 import { formatDate } from '../utils/formatDate';
 import { formatCurrency } from '../utils/formatCurrency';
-import { PRICE_INPUT_HINT } from '../utils/currencyInput';
 import { getErrorMessage } from '../utils/getErrorMessage';
 
 export const CashPage = () => {
@@ -304,7 +303,6 @@ export const CashPage = () => {
         <div className="space-y-4">
           <CurrencyInput
             label="Monto inicial en caja (ARS)"
-            hint={PRICE_INPUT_HINT}
             size="lg"
             value={montoApertura}
             onChange={(v) => setMontoApertura(v ?? 0)}
@@ -322,7 +320,6 @@ export const CashPage = () => {
           </p>
           <CurrencyInput
             label="Efectivo contado al cierre (ARS)"
-            hint={PRICE_INPUT_HINT}
             size="lg"
             value={montoCierre}
             onChange={(v) => setMontoCierre(v ?? 0)}
@@ -354,7 +351,6 @@ export const CashPage = () => {
           />
           <CurrencyInput
             label="Monto (ARS)"
-            hint={PRICE_INPUT_HINT}
             size="lg"
             min={0.01}
             value={movMonto}
