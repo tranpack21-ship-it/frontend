@@ -330,7 +330,11 @@ export const SalesPage = () => {
                                 size="sm"
                                 className="!text-red-600"
                                 onClick={() => setCancelTarget(s)}
-                                title="Anular venta"
+                                title={
+                                  s.anulacion_otro_turno
+                                    ? 'Anular (se asienta en su turno actual)'
+                                    : 'Anular venta'
+                                }
                               >
                                 <Ban className="w-4 h-4" />
                               </Button>
@@ -341,11 +345,7 @@ export const SalesPage = () => {
                                 size="sm"
                                 className="!text-slate-300 cursor-not-allowed"
                                 disabled
-                                title={
-                                  s.caja_sesion_estado === 'cerrada'
-                                    ? 'Turno de caja cerrado'
-                                    : 'Solo puede anular ventas del turno actual'
-                                }
+                                title="Abra un turno de caja para anular (el reverso queda en su turno actual)"
                               >
                                 <Ban className="w-4 h-4" />
                               </Button>

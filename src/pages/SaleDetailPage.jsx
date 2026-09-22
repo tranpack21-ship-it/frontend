@@ -228,9 +228,8 @@ export const SaleDetailPage = () => {
           <div className="flex items-start gap-2">
             <Info className="w-4 h-4 shrink-0 mt-0.5" />
             <span>
-              {venta.caja_sesion_estado === 'cerrada'
-                ? 'Esta venta pertenece a un turno de caja cerrado y no puede anularse.'
-                : 'Solo puede anular ventas registradas en su turno de caja abierto actualmente.'}
+              Para anular esta venta debe tener un turno de caja abierto. El reverso se asienta
+              en su turno actual (aunque la venta sea de otro día).
             </span>
           </div>
         </Alert>

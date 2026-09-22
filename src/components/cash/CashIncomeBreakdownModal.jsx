@@ -7,6 +7,7 @@ export const CashIncomeBreakdownModal = ({ isOpen, onClose, resumen }) => {
   const ventas = resumen.ventas_por_metodo || [];
   const cobros = resumen.cobros_cc_por_metodo || [];
   const egresos = resumen.egresos_por_metodo || [];
+  const anulaciones = resumen.anulaciones_por_metodo || [];
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Detalle de ingresos" size="lg">
@@ -76,6 +77,33 @@ export const CashIncomeBreakdownModal = ({ isOpen, onClose, resumen }) => {
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {anulaciones.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold text-slate-800 mb-2">
+              Anulaciones / devoluciones de este turno
+            </h3>
+            <p className="text-xs text-slate-500 mb-2">
+              Incluye anulaciones de ventas de este u otro turno, asentadas aquí.
+            </p>
+            <ul className="space-y-2">
+              {anulaciones.map((item) => (
+                <li
+                  key={item.metodo_pago}
+                  className="flex justify-between items-center py-2 px-3 rounded-lg bg-amber-50 border border-amber-100"
+                >
+                  <span className="text-sm text-slate-700">{item.nombre}</span>
+                  <span className="font-semibold text-sm text-amber-800">
+                    −{formatCurrency(item.total)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm font-medium text-amber-900 mt-2">
+              Total anulaciones: −{formatCurrency(resumen.total_anulaciones ?? 0)}
+            </p>
           </section>
         )}
 

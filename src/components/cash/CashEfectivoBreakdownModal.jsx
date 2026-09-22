@@ -45,7 +45,8 @@ export const CashEfectivoBreakdownModal = ({ isOpen, onClose, resumen }) => {
     (desglose.ventas_por_metodo?.length ?? 0) > 0 ||
     (desglose.cobros_por_metodo?.length ?? 0) > 0 ||
     (desglose.ingresos_manuales_por_metodo?.length ?? 0) > 0 ||
-    (desglose.egresos_por_metodo?.length ?? 0) > 0;
+    (desglose.egresos_por_metodo?.length ?? 0) > 0 ||
+    (desglose.anulaciones_por_metodo?.length ?? 0) > 0;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Detalle de efectivo en caja" size="lg">
@@ -56,7 +57,7 @@ export const CashEfectivoBreakdownModal = ({ isOpen, onClose, resumen }) => {
             {formatCurrency(efectivo)}
           </p>
           <p className="text-xs text-slate-500 mt-1">
-            Apertura + ventas, cobros e ingresos en efectivo − egresos en efectivo
+            Apertura + ventas, cobros e ingresos − egresos y anulaciones en efectivo
           </p>
         </div>
 
@@ -100,6 +101,15 @@ export const CashEfectivoBreakdownModal = ({ isOpen, onClose, resumen }) => {
           negative
           accentClass="text-red-700"
           badgeClass="border-red-100 bg-red-50/50"
+        />
+
+        <Section
+          title="Anulaciones / devoluciones en efectivo"
+          total={desglose.total_anulaciones ?? 0}
+          items={desglose.anulaciones_por_metodo}
+          negative
+          accentClass="text-amber-800"
+          badgeClass="border-amber-100 bg-amber-50/50"
         />
 
         {!hayMovimientos && (

@@ -14,8 +14,7 @@ export const SaleCancelModal = ({
 }) => {
   if (!sale) return null;
 
-  const isCashSessionClosed =
-    sale.caja_sesion_id && sale.caja_sesion_estado && sale.caja_sesion_estado !== 'abierta';
+  const isOtherShift = Boolean(sale.anulacion_otro_turno);
 
   return (
     <Modal
@@ -56,6 +55,20 @@ export const SaleCancelModal = ({
           </div>
         </div>
 
+        {isOtherShift && (
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-sky-50 border border-sky-200">
+            <AlertTriangle className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-sky-900">
+              <p className="font-medium">Venta de otro turno</p>
+              <p className="mt-1 text-sky-800">
+                El retiro de dinero (si corresponde) queda asentado en su turno de caja actual,
+                identificado como anulación de una venta anterior. El turno original no se
+                modifica.
+              </p>
+            </div>
+          </div>
+        )}
+
         <dl className="grid grid-cols-2 gap-3 text-sm rounded-xl border border-slate-200 p-4 bg-slate-50/50">
           <div>
             <dt className="text-slate-500">Venta</dt>
@@ -74,12 +87,6 @@ export const SaleCancelModal = ({
             <dd>{formatDate(sale.fecha_venta)}</dd>
           </div>
         </dl>
-
-        {isCashSessionClosed && (
-          <p className="text-sm text-red-600">
-            Esta venta pertenece a un turno de caja cerrado y no puede anularse.
-          </p>
-        )}
 
         <div className="text-sm text-slate-600 space-y-2">
           <p>
