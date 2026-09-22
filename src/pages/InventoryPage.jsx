@@ -64,6 +64,9 @@ const MovementTipoBadge = ({ tipo }) => {
   );
 };
 
+const movementCantidadDisplay = (m) =>
+  m.tipo === 'ajuste' ? Number(m.stock_posterior) : Number(m.cantidad);
+
 const MovementCard = ({ movement: m }) => (
   <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
     <div className="flex items-start justify-between gap-3">
@@ -75,8 +78,12 @@ const MovementCard = ({ movement: m }) => (
     </div>
     <div className="grid grid-cols-2 gap-2 text-sm">
       <div>
-        <p className="text-[10px] uppercase tracking-wide text-slate-400">Cantidad</p>
-        <p className="font-medium text-slate-800 tabular-nums">{formatNumber(m.cantidad, 2)}</p>
+        <p className="text-[10px] uppercase tracking-wide text-slate-400">
+          {m.tipo === 'ajuste' ? 'Stock fijado' : 'Cantidad'}
+        </p>
+        <p className="font-medium text-slate-800 tabular-nums">
+          {formatNumber(movementCantidadDisplay(m), 2)}
+        </p>
       </div>
       <div>
         <p className="text-[10px] uppercase tracking-wide text-slate-400">Stock</p>
@@ -337,7 +344,12 @@ export const InventoryPage = () => {
                           <MovementTipoBadge tipo={m.tipo} />
                         </td>
                         <td className="px-4 py-3 font-medium tabular-nums">
-                          {formatNumber(m.cantidad, 2)}
+                          {formatNumber(movementCantidadDisplay(m), 2)}
+                          {m.tipo === 'ajuste' && (
+                            <span className="block text-[10px] font-normal text-slate-400">
+                              stock fijado
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-slate-600 tabular-nums">
                           {formatNumber(m.stock_anterior, 0)} →{' '}
