@@ -87,21 +87,11 @@ export const InventoryMovementForm = ({
           : cantidadNum
       : null;
 
-  const valorEstimado =
-    tipo === 'entrada' &&
-    motivoSelect &&
-    motivoSelect !== '__otro__' &&
-    motivoSelect.toLowerCase().includes('compra de mercader') &&
-    cantidadNum > 0 &&
-    precioCosto > 0
-      ? cantidadNum * precioCosto
-      : null;
-
   const motiveOptions = useMemo(() => {
     const filtered = motives.filter((m) => {
       if (tipo === 'entrada') return m.tipo === 'entrada' || m.tipo === 'ambos';
       if (tipo === 'salida') return m.tipo === 'salida' || m.tipo === 'ambos';
-      return true; // ajuste: todos los motivos activos
+      return true;
     });
     return [
       { value: '', label: 'Seleccionar motivo…' },
@@ -138,6 +128,34 @@ export const InventoryMovementForm = ({
       if (!stillValid) setValue('motivo_select', '');
     }
   }, [tipo, motiveOptions, motivoSelect, setValue]);
+
+  useEffect(() => {
+    if (
+      motivoSelect &&
+      motivoSelect !== '__otro__' &&
+      motivoSelect.toLowerCase().includes('compra de mercader') &&
+      tipo === 'ajuste'
+    ) {
+      setValue('tipo', 'entrada');
+    }
+  }, [motivoSelect, tipo, setValue]);
+
+  const esCompraMotivo =
+    motivoSelect &&
+    motivoSelect !== '__otro__' &&
+    motivoSelect.toLowerCase().includes('compra de mercader');
+
+  const unidadesCompraEstimadas =
+    tipo === 'entrada'
+      ? cantidadNum
+      : tipo === 'ajuste' && cantidadNum > stockActual
+        ? cantidadNum - stockActual
+        : 0;
+
+  const valorEstimado =
+    esCompraMotivo && unidadesCompraEstimadas > 0 && precioCosto > 0
+      ? unidadesCompraEstimadas * precioCosto
+      : null;
 
   const handleFormSubmit = (data) => {
     let motivo = '';

@@ -788,8 +788,9 @@ export const ReportsPage = () => {
                 <p className="text-sm text-slate-600 leading-relaxed">
                   Compara los egresos de caja con descripción{' '}
                   <strong>«{compras.concepto}»</strong> contra el valor a costo de las
-                  entradas de inventario con el mismo motivo. Si gastaste $20.000 en caja e
-                  ingresaste mercadería por $20.000 de costo, la diferencia debe ser ~0.
+                  entradas (y ajustes que suben stock) de inventario con el mismo motivo.
+                  Si gastaste $20.000 en caja e ingresaste mercadería por $20.000 de costo, la
+                  diferencia debe ser ~0.
                 </p>
               </Card>
 
@@ -887,13 +888,13 @@ export const ReportsPage = () => {
                   <SectionHeader
                     icon={Package}
                     title="Entradas de inventario"
-                    subtitle="Valor = cantidad × precio de costo"
+                    subtitle="Entradas y ajustes alcistas · valor = unidades × precio de costo"
                   />
                   <div className="px-4 sm:px-6 pb-6">
                     {compras.detalle_entradas.length === 0 ? (
                       <EmptyState
                         title="Sin entradas"
-                        description="No hay entradas con ese motivo en el período"
+                        description="No hay entradas/ajustes con ese motivo en el período"
                       />
                     ) : (
                       <div className="overflow-x-auto">
@@ -902,6 +903,7 @@ export const ReportsPage = () => {
                             <tr className="border-b border-slate-200 text-left text-slate-500">
                               <th className="py-2 pr-3 font-medium">Fecha</th>
                               <th className="py-2 pr-3 font-medium">Producto</th>
+                              <th className="py-2 pr-3 font-medium">Tipo</th>
                               <th className="py-2 pr-3 text-right font-medium">Cant.</th>
                               <th className="py-2 text-right font-medium">Valor</th>
                             </tr>
@@ -917,6 +919,9 @@ export const ReportsPage = () => {
                                   <span className="block text-xs text-slate-400">
                                     {formatCurrency(e.precio_costo)} / ud
                                   </span>
+                                </td>
+                                <td className="py-2.5 pr-3 text-xs text-slate-500 capitalize">
+                                  {e.tipo || 'entrada'}
                                 </td>
                                 <td className="py-2.5 pr-3 text-right tabular-nums text-slate-600">
                                   {formatNumber(e.cantidad, 2)}
