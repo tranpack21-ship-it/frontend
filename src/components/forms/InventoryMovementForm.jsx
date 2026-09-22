@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowDown, ArrowUp, SlidersHorizontal, Package, AlertTriangle } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
+import { CurrencyInput } from '../ui/CurrencyInput';
 import { ProductPicker } from '../catalog/ProductPicker';
 import { ProductImage } from '../catalog/ProductImage';
 import { ProductMetaChips } from '../catalog/ProductMetaChips';
@@ -59,9 +60,9 @@ export const InventoryMovementForm = ({
       producto_id: '',
       tipo: 'entrada',
       cantidad: '',
-      motivo: '',
       motivo_select: '',
       motivo_detalle: '',
+      precio_costo: 0,
     },
   });
 
@@ -71,9 +72,13 @@ export const InventoryMovementForm = ({
   const cantidad = watch('cantidad');
   const motivoSelect = watch('motivo_select');
   const motivoDetalle = watch('motivo_detalle');
+  const precioCostoWatch = watch('precio_costo');
   const cantidadNum = Number(cantidad) || 0;
   const stockActual = Number(selectedProduct?.stock) || 0;
-  const precioCosto = Number(selectedProduct?.precio_costo) || 0;
+  const precioCosto = Number(precioCostoWatch) || 0;
+  const costoOriginal = Number(selectedProduct?.precio_costo) || 0;
+  const costoModificado =
+    selectedProduct != null && Math.abs(precioCosto - costoOriginal) > 0.0001;
 
   const stockInsuficiente =
     tipo === 'salida' && selectedProduct && cantidadNum > 0 && cantidadNum > stockActual;
@@ -86,6 +91,15 @@ export const InventoryMovementForm = ({
           ? stockActual - cantidadNum
           : cantidadNum
       : null;
+
+  const unidadesValor =
+    !selectedProduct || cantidadNum <= 0
+      ? 0
+      : tipo === 'entrada' || tipo === 'salida'
+        ? cantidadNum
+        : Math.abs(cantidadNum - stockActual);
+
+  const totalCosto = unidadesValor > 0 && precioCosto > 0 ? unidadesValor * precioCosto : 0;
 
   const motiveOptions = useMemo(() => {
     const filtered = motives.filter((m) => {
@@ -140,22 +154,10 @@ export const InventoryMovementForm = ({
     }
   }, [motivoSelect, tipo, setValue]);
 
-  const esCompraMotivo =
-    motivoSelect &&
-    motivoSelect !== '__otro__' &&
-    motivoSelect.toLowerCase().includes('compra de mercader');
-
-  const unidadesCompraEstimadas =
-    tipo === 'entrada'
-      ? cantidadNum
-      : tipo === 'ajuste' && cantidadNum > stockActual
-        ? cantidadNum - stockActual
-        : 0;
-
-  const valorEstimado =
-    esCompraMotivo && unidadesCompraEstimadas > 0 && precioCosto > 0
-      ? unidadesCompraEstimadas * precioCosto
-      : null;
+  const handleProductSelect = (product) => {
+    setSelectedProduct(product);
+    setValue('precio_costo', Number(product?.precio_costo) || 0, { shouldValidate: true });
+  };
 
   const handleFormSubmit = (data) => {
     let motivo = '';
@@ -171,6 +173,7 @@ export const InventoryMovementForm = ({
       tipo: data.tipo,
       cantidad: data.cantidad,
       motivo,
+      precio_costo: Number(data.precio_costo) || 0,
     });
   };
 
@@ -223,9 +226,12 @@ export const InventoryMovementForm = ({
             selectedProduct={selectedProduct}
             onChange={(v) => {
               field.onChange(v ? Number(v) : '');
-              if (!v) setSelectedProduct(null);
+              if (!v) {
+                setSelectedProduct(null);
+                setValue('precio_costo', 0);
+              }
             }}
-            onProductSelect={setSelectedProduct}
+            onProductSelect={handleProductSelect}
             error={errors.producto_id?.message}
             placeholder="Buscar por código o nombre…"
           />
@@ -253,34 +259,67 @@ export const InventoryMovementForm = ({
               <span className="font-semibold tabular-nums">
                 {formatNumber(stockActual, 2)} {selectedProduct.unidad_medida || 'unidad'}
               </span>
-              {precioCosto > 0 && (
-                <span className="text-slate-500">
-                  {' '}
-                  · Costo {formatCurrency(precioCosto)}
-                </span>
-              )}
             </p>
           </div>
         </div>
       )}
 
-      <Input
-        id="cantidad"
-        label={tipo === 'ajuste' ? 'Nuevo stock total' : 'Cantidad'}
-        type="number"
-        step="0.001"
-        min="0"
-        size="md"
-        hint={
-          tipo === 'ajuste'
-            ? 'El stock quedará en este valor exacto'
-            : tipo === 'salida'
-              ? 'Se descontará del stock actual'
-              : 'Se sumará al stock actual'
-        }
-        error={errors.cantidad?.message}
-        {...register('cantidad')}
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input
+          id="cantidad"
+          label={tipo === 'ajuste' ? 'Nuevo stock total' : 'Cantidad'}
+          type="number"
+          step="0.001"
+          min="0"
+          size="md"
+          hint={
+            tipo === 'ajuste'
+              ? 'El stock quedará en este valor exacto'
+              : tipo === 'salida'
+                ? 'Se descontará del stock actual'
+                : 'Se sumará al stock actual'
+          }
+          error={errors.cantidad?.message}
+          {...register('cantidad')}
+        />
+
+        <Controller
+          name="precio_costo"
+          control={control}
+          render={({ field }) => (
+            <CurrencyInput
+              id="precio_costo"
+              label="Precio de costo"
+              size="md"
+              value={field.value}
+              onChange={(v) => field.onChange(v ?? 0)}
+              onBlur={field.onBlur}
+              min={0}
+              disabled={!selectedProduct}
+              hint={
+                costoModificado
+                  ? 'Se actualizará en el producto al registrar'
+                  : 'Podés modificarlo al instante'
+              }
+              error={errors.precio_costo?.message}
+            />
+          )}
+        />
+      </div>
+
+      {selectedProduct && cantidadNum > 0 && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-950">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="font-medium">Total a costo</span>
+            <span className="text-lg font-bold tabular-nums">{formatCurrency(totalCosto)}</span>
+          </div>
+          <p className="text-xs text-emerald-800 mt-1">
+            {formatNumber(unidadesValor, 2)} uds × {formatCurrency(precioCosto)}
+            {tipo === 'ajuste' ? ' (diferencia de stock)' : ''}
+            {precioCosto <= 0 ? ' · cargá un costo para ver el total' : ''}
+          </p>
+        </div>
+      )}
 
       <Select
         id="motivo_select"
@@ -307,16 +346,6 @@ export const InventoryMovementForm = ({
           onChange={(e) => setValue('motivo_detalle', e.target.value)}
           error={errors.motivo_detalle?.message}
         />
-      )}
-
-      {valorEstimado != null && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
-          Valor estimado a costo:{' '}
-          <span className="font-semibold tabular-nums">{formatCurrency(valorEstimado)}</span>
-          <span className="block text-xs text-emerald-700 mt-0.5">
-            Se usa para conciliar con egresos de «Compra de mercadería» en Reportes.
-          </span>
-        </div>
       )}
 
       {motives.length === 0 && (

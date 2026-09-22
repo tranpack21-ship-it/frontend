@@ -24,6 +24,7 @@ export const movementFormSchema = z
     cantidad: z.coerce.number().positive('Cantidad mayor a 0'),
     motivo_select: z.string().min(1, 'Seleccione un motivo'),
     motivo_detalle: z.string().max(200).optional().or(z.literal('')),
+    precio_costo: z.coerce.number().min(0, 'El costo no puede ser negativo').optional(),
   })
   .superRefine((data, ctx) => {
     if (data.motivo_select === '__otro__') {
