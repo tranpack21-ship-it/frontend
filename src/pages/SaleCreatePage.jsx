@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Plus, ArrowLeft, Wallet, CreditCard } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Wallet, CreditCard, Trash2, PackagePlus } from 'lucide-react';
 import { saleService } from '../services/saleService';
 import { clientService } from '../services/clientService';
 import { productService } from '../services/productService';
@@ -8,6 +8,7 @@ import { cashService } from '../services/cashService';
 import { usePermissions } from '../hooks/usePermissions';
 import { PERMISSIONS, TIPOS_COMPROBANTE } from '../constants/permissions';
 import { usePaymentMethods } from '../hooks/usePaymentMethods';
+import { useAuthStore } from '../store/authStore';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { SearchInput } from '../components/ui/SearchInput';
@@ -24,6 +25,7 @@ import { SaleMobileCheckoutBar } from '../components/commercial/SaleMobileChecko
 import { SaleCheckoutModal } from '../components/commercial/SaleCheckoutModal';
 import { createPaymentLine } from '../components/commercial/SalePaymentSplitEditor';
 import { ProductSearchCard } from '../components/catalog/ProductSearchCard';
+import { QuickProductCreateModal } from '../components/catalog/QuickProductCreateModal';
 import { ClientPickerModal } from '../components/commercial/ClientPickerModal';
 import { useDebounce } from '../hooks/useDebounce';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -32,6 +34,12 @@ import { useConnection } from '../context/ConnectionContext';
 import { OnlineOnlyButton } from '../components/common/OnlineOnlyLink';
 import { getStockAddWarning } from '../utils/stockWarnings';
 import { formatNumber } from '../utils/formatCurrency';
+import {
+  loadSaleDraft,
+  saveSaleDraft,
+  clearSaleDraft,
+  saleDraftHasContent,
+} from '../utils/saleDraft';
 
 const MIN_SEARCH_CHARS = 2;
 
@@ -40,7 +48,9 @@ export const SaleCreatePage = () => {
   const location = useLocation();
   const { isOffline } = useConnection();
   const { hasPermission } = usePermissions();
+  const userId = useAuthStore((s) => s.user?.id);
   const canCreateSale = hasPermission(PERMISSIONS.VENTAS_CREAR);
+  const canCreateProduct = hasPermission(PERMISSIONS.PRODUCTOS_CREAR);
   const requiresOpenCash = hasPermission(PERMISSIONS.CAJA_ABRIR);
   const { methods: paymentMethods, defaultMethod, loading: paymentMethodsLoading } =
     usePaymentMethods({ activos: true });
@@ -57,6 +67,7 @@ export const SaleCreatePage = () => {
   const [info, setInfo] = useState(location.state?.message || '');
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [clientPickerOpen, setClientPickerOpen] = useState(false);
+  const [quickProductOpen, setQuickProductOpen] = useState(false);
   const [clienteId, setClienteId] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [descuentoGlobal, setDescuentoGlobal] = useState(0);
@@ -73,6 +84,8 @@ export const SaleCreatePage = () => {
   const convertingFromQuote = Boolean(presupuestoId);
 
   const cartSectionRef = useRef(null);
+  const draftReadyRef = useRef(false);
+  const skipNextDraftSaveRef = useRef(false);
 
   const refreshCashSession = useCallback(async () => {
     if (!canCreateSale) return null;
@@ -141,6 +154,34 @@ export const SaleCreatePage = () => {
   useEffect(() => {
     refreshCashSession();
   }, [refreshCashSession]);
+
+  // Restaurar borrador local (PWA): sobrevive al cambiar de pestaña / cerrar la app.
+  useEffect(() => {
+    if (!userId || draftReadyRef.current) return;
+
+    const incomingReplace =
+      Boolean(location.state?.redoFrom) || Boolean(location.state?.convertFrom);
+
+    if (incomingReplace) {
+      clearSaleDraft(userId);
+      draftReadyRef.current = true;
+      return;
+    }
+
+    const draft = loadSaleDraft(userId);
+    if (draft && saleDraftHasContent(draft)) {
+      skipNextDraftSaveRef.current = true;
+      setCart(Array.isArray(draft.cart) ? draft.cart : []);
+      setClienteId(draft.clienteId != null && draft.clienteId !== '' ? String(draft.clienteId) : '');
+      setObservaciones(draft.observaciones || '');
+      setDescuentoGlobal(Number(draft.descuentoGlobal) || 0);
+      setSplitPayment(Boolean(draft.splitPayment));
+      setPaymentLines(Array.isArray(draft.paymentLines) ? draft.paymentLines : []);
+      setTipoComprobante(draft.tipoComprobante || 'ticket');
+      setInfo('Se recuperó la venta en curso');
+    }
+    draftReadyRef.current = true;
+  }, [userId, location.state?.redoFrom, location.state?.convertFrom]);
 
   useEffect(() => {
     const redo = location.state?.redoFrom;
@@ -336,10 +377,118 @@ export const SaleCreatePage = () => {
     };
   }, [refreshCashSession]);
 
+  // Persistir borrador al editar (también al ir a segundo plano en PWA).
+  useEffect(() => {
+    if (!userId || !draftReadyRef.current) return;
+    if (convertingFromQuote) return;
+    if (skipNextDraftSaveRef.current) {
+      skipNextDraftSaveRef.current = false;
+      return;
+    }
+    saveSaleDraft(userId, {
+      cart,
+      clienteId,
+      observaciones,
+      descuentoGlobal,
+      splitPayment,
+      paymentLines,
+      tipoComprobante,
+    });
+  }, [
+    userId,
+    cart,
+    clienteId,
+    observaciones,
+    descuentoGlobal,
+    splitPayment,
+    paymentLines,
+    tipoComprobante,
+    convertingFromQuote,
+  ]);
+
+  // Flush inmediato al ocultar la app / cambiar de pestaña (PWA).
+  useEffect(() => {
+    if (!userId || convertingFromQuote) return;
+
+    const flush = () => {
+      if (!draftReadyRef.current || skipNextDraftSaveRef.current) return;
+      saveSaleDraft(userId, {
+        cart,
+        clienteId,
+        observaciones,
+        descuentoGlobal,
+        splitPayment,
+        paymentLines,
+        tipoComprobante,
+      });
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [
+    userId,
+    cart,
+    clienteId,
+    observaciones,
+    descuentoGlobal,
+    splitPayment,
+    paymentLines,
+    tipoComprobante,
+    convertingFromQuote,
+  ]);
+
+  const draftHasContent = useMemo(
+    () =>
+      saleDraftHasContent({
+        cart,
+        clienteId,
+        observaciones,
+        descuentoGlobal,
+      }),
+    [cart, clienteId, observaciones, descuentoGlobal]
+  );
+
   const scrollToCart = () => {
     requestAnimationFrame(() => {
       cartSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+  };
+
+  const clearSale = () => {
+    if (convertingFromQuote) return;
+    skipNextDraftSaveRef.current = true;
+    clearSaleDraft(userId);
+    setCart([]);
+    setClienteId('');
+    setObservaciones('');
+    setDescuentoGlobal(0);
+    setSplitPayment(false);
+    setPaymentLines([]);
+    setTipoComprobante('ticket');
+    setProductSearch('');
+    setSearchResults([]);
+    setError('');
+    setStockWarning('');
+    setPaymentModalOpen(false);
+    setClientPickerOpen(false);
+    setQuickProductOpen(false);
+    setInfo('Venta limpiada');
+  };
+
+  const handleQuickProductCreated = (producto) => {
+    if (!producto?.id) return;
+    addToCart(producto);
+    setProductSearch('');
+    setSearchResults([]);
+    setInfo(`«${producto.nombre}» creado y agregado al carrito`);
   };
 
   const addToCart = (product, modoVenta = MODOS_VENTA.SUELTO) => {
@@ -682,6 +831,8 @@ export const SaleCreatePage = () => {
           descuento: i.descuento ?? 0,
         })),
       });
+      clearSaleDraft(userId);
+      skipNextDraftSaveRef.current = true;
       navigate(`/ventas/${venta.id}`, {
         state: {
           justCreated: true,
@@ -718,7 +869,7 @@ export const SaleCreatePage = () => {
           <p className="text-slate-500 text-sm mt-0.5">
             {convertingFromQuote
               ? `Presupuesto ${presupuestoNumero} — registre el pago para completar la venta`
-              : 'Agregue productos y registre el pago cuando esté listo'}
+              : 'El carrito se guarda solo: podés cambiar de pestaña y volver sin perder nada'}
           </p>
         </div>
         {requiresOpenCash && (
@@ -736,6 +887,19 @@ export const SaleCreatePage = () => {
               </Badge>
             )}
           </div>
+        )}
+        {!convertingFromQuote && draftHasContent && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="min-h-11 text-slate-600 hover:text-red-700 hover:bg-red-50"
+            onClick={clearSale}
+            aria-label="Limpiar venta"
+          >
+            <Trash2 className="w-4 h-4" />
+            Limpiar
+          </Button>
         )}
         {cart.length > 0 && (
           <OnlineOnlyButton
@@ -795,6 +959,21 @@ export const SaleCreatePage = () => {
             hint={`Mínimo ${MIN_SEARCH_CHARS} caracteres`}
             className="mb-3"
           />
+          {canCreateProduct && (
+            <div className="mb-3">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-full min-h-10"
+                onClick={() => setQuickProductOpen(true)}
+                disabled={isOffline}
+              >
+                <PackagePlus className="w-4 h-4" />
+                Crear producto rápido
+              </Button>
+            </div>
+          )}
           {searchError && <p className="text-sm text-red-600 mb-2">{searchError}</p>}
           <div
             className="space-y-2 overflow-y-auto overscroll-contain -mx-1 px-1"
@@ -814,9 +993,22 @@ export const SaleCreatePage = () => {
               productSearch.trim().length >= MIN_SEARCH_CHARS &&
               searchResults.length === 0 &&
               !searchError && (
-                <p className="text-sm text-slate-500 text-center py-12">
-                  Sin resultados para &quot;{productSearch.trim()}&quot;
-                </p>
+                <div className="flex flex-col items-center justify-center gap-3 py-10 px-2 text-center">
+                  <p className="text-sm text-slate-500">
+                    Sin resultados para &quot;{productSearch.trim()}&quot;
+                  </p>
+                  {canCreateProduct && (
+                    <Button
+                      type="button"
+                      onClick={() => setQuickProductOpen(true)}
+                      disabled={isOffline}
+                      className="min-h-11"
+                    >
+                      <PackagePlus className="w-4 h-4" />
+                      Crear «{productSearch.trim()}»
+                    </Button>
+                  )}
+                </div>
               )}
             {!searchLoading &&
               searchResults.map((p) => {
@@ -859,11 +1051,26 @@ export const SaleCreatePage = () => {
             }
             className="!p-4 sm:!p-6 flex-1 flex flex-col"
             action={
-              cart.length > 0 ? (
-                <span className="text-sm font-bold text-brand-700 tabular-nums">
-                  {formatCurrency(subtotal)}
-                </span>
-              ) : null
+              <div className="flex items-center gap-2">
+                {!convertingFromQuote && draftHasContent && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-slate-500 hover:text-red-700 hover:bg-red-50"
+                    onClick={clearSale}
+                    aria-label="Limpiar venta"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Limpiar</span>
+                  </Button>
+                )}
+                {cart.length > 0 ? (
+                  <span className="text-sm font-bold text-brand-700 tabular-nums">
+                    {formatCurrency(subtotal)}
+                  </span>
+                ) : null}
+              </div>
             }
           >
             {cart.length === 0 ? (
@@ -960,6 +1167,13 @@ export const SaleCreatePage = () => {
         onClose={() => setClientPickerOpen(false)}
         onSelect={handleClientPicked}
         title="Cliente — cuenta corriente"
+      />
+
+      <QuickProductCreateModal
+        isOpen={quickProductOpen}
+        onClose={() => setQuickProductOpen(false)}
+        initialNombre={productSearch}
+        onCreated={handleQuickProductCreated}
       />
 
       <SaleMobileCheckoutBar
