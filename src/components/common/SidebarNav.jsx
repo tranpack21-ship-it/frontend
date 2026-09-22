@@ -75,6 +75,7 @@ export const SidebarNav = ({ onNavigate }) => {
   );
   const showPaymentMethods = hasPermission(PERMISSIONS.METODOS_PAGO_GESTIONAR);
   const showCashConcepts = hasPermission(PERMISSIONS.CAJA_CONCEPTOS_GESTIONAR);
+  const showInventoryMotives = hasPermission(PERMISSIONS.INVENTARIO_MOTIVOS_GESTIONAR);
   const showCategories = hasPermission(
     PERMISSIONS.CATEGORIAS_VER,
     PERMISSIONS.CATEGORIAS_CREAR,
@@ -371,6 +372,16 @@ export const SidebarNav = ({ onNavigate }) => {
                 >
                   <Tags className="w-4 h-4 shrink-0" />
                   Conceptos de caja
+                </NavLink>
+              )}
+              {showInventoryMotives && (
+                <NavLink
+                  to="/configuracion/motivos-inventario"
+                  className={subLinkClass}
+                  onClick={handleClick}
+                >
+                  <ClipboardList className="w-4 h-4 shrink-0" />
+                  Motivos de inventario
                 </NavLink>
               )}
             </div>

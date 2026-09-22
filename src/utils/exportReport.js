@@ -20,6 +20,7 @@ export const exportReportExcel = async ({
   lowStock,
   expenses,
   resultado,
+  compras,
 }) => {
   const XLSX = await import('xlsx');
 
@@ -41,6 +42,10 @@ export const exportReportExcel = async ({
     ['Costo mercadería (est.)', resultado?.costo_mercaderia ?? 0],
     ['Margen bruto', resultado?.margen_bruto ?? 0],
     ['Resultado neto estimado', resultado?.resultado_neto ?? 0],
+    [],
+    ['Compras — egresos caja', compras?.egresos_caja ?? 0],
+    ['Compras — valor entradas', compras?.valor_entradas ?? 0],
+    ['Compras — diferencia', compras?.diferencia ?? 0],
   ];
 
   const porMetodo = [
@@ -134,6 +139,31 @@ export const exportReportExcel = async ({
     ['Productos sin costo', resultado?.productos_sin_costo ?? 0],
   ];
 
+  const comprasSheet = [
+    ['Tran-Pack — Conciliación compras'],
+    ['Período', `${fechaDesde} al ${fechaHasta}`],
+    ['Concepto', compras?.concepto ?? 'Compra de mercadería'],
+    [],
+    ['Egresos en caja', compras?.egresos_caja ?? 0],
+    ['Valor entradas a costo', compras?.valor_entradas ?? 0],
+    ['Diferencia', compras?.diferencia ?? 0],
+    ['Coinciden', compras?.coinciden ? 'Sí' : 'No'],
+    [],
+    ['Fecha', 'Tipo', 'Detalle', 'Monto/Valor'],
+    ...(compras?.detalle_egresos || []).map((e) => [
+      e.fecha,
+      'Egreso caja',
+      e.descripcion,
+      e.monto,
+    ]),
+    ...(compras?.detalle_entradas || []).map((e) => [
+      e.fecha,
+      'Entrada inventario',
+      e.producto_nombre,
+      e.valor_costo,
+    ]),
+  ];
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(resumen), 'Resumen');
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(porMetodo), 'Por método pago');
@@ -150,6 +180,7 @@ export const exportReportExcel = async ({
   );
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(egresosDetalle), 'Detalle egresos');
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(resultadoSheet), 'Resultado neto');
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(comprasSheet), 'Compras');
 
   XLSX.writeFile(workbook, buildFilename(fechaDesde, fechaHasta, 'xlsx'));
 };

@@ -41,6 +41,8 @@ export const PERMISSIONS = {
   METODOS_PAGO_GESTIONAR: 'metodos_pago.gestionar',
   CAJA_CONCEPTOS_VER: 'caja_conceptos.ver',
   CAJA_CONCEPTOS_GESTIONAR: 'caja_conceptos.gestionar',
+  INVENTARIO_MOTIVOS_VER: 'inventario_motivos.ver',
+  INVENTARIO_MOTIVOS_GESTIONAR: 'inventario_motivos.gestionar',
 };
 
 export const ROLES = { ADMIN: 'admin', EMPLEADO: 'empleado' };
@@ -54,6 +56,7 @@ export const CONFIG_ACCESS_PERMISSIONS = [
   PERMISSIONS.PERMISOS_ASIGNAR,
   PERMISSIONS.METODOS_PAGO_GESTIONAR,
   PERMISSIONS.CAJA_CONCEPTOS_GESTIONAR,
+  PERMISSIONS.INVENTARIO_MOTIVOS_GESTIONAR,
 ];
 
 export const CATALOGO_ACCESS_PERMISSIONS = [
@@ -193,6 +196,8 @@ export const PERMISSION_LABELS = {
   [PERMISSIONS.METODOS_PAGO_GESTIONAR]: 'Configurar métodos de pago',
   [PERMISSIONS.CAJA_CONCEPTOS_VER]: 'Ver conceptos de caja',
   [PERMISSIONS.CAJA_CONCEPTOS_GESTIONAR]: 'Configurar conceptos de caja',
+  [PERMISSIONS.INVENTARIO_MOTIVOS_VER]: 'Ver motivos de inventario',
+  [PERMISSIONS.INVENTARIO_MOTIVOS_GESTIONAR]: 'Configurar motivos de inventario',
 };
 
 export const PERMISSION_GROUPS = [
@@ -221,6 +226,14 @@ export const PERMISSION_GROUPS = [
     modulo: 'caja_conceptos',
     titulo: 'Conceptos de caja',
     permisos: [PERMISSIONS.CAJA_CONCEPTOS_VER, PERMISSIONS.CAJA_CONCEPTOS_GESTIONAR],
+  },
+  {
+    modulo: 'inventario_motivos',
+    titulo: 'Motivos de inventario',
+    permisos: [
+      PERMISSIONS.INVENTARIO_MOTIVOS_VER,
+      PERMISSIONS.INVENTARIO_MOTIVOS_GESTIONAR,
+    ],
   },
   {
     modulo: 'categorias',

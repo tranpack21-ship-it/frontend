@@ -29,4 +29,8 @@ export const reportService = {
     const { data } = await api.get('/reports/resultado', { params });
     return data.data.reporte;
   },
+  comprasMercaderia: async (params) => {
+    const { data } = await api.get('/reports/compras-mercaderia', { params });
+    return data.data.reporte;
+  },
 };

@@ -7,6 +7,7 @@ import { UsersPage } from '../pages/UsersPage';
 import { PermissionsPage } from '../pages/PermissionsPage';
 import { PaymentMethodsConfigPage } from '../pages/PaymentMethodsConfigPage';
 import { CashConceptsConfigPage } from '../pages/CashConceptsConfigPage';
+import { InventoryMotivesConfigPage } from '../pages/InventoryMotivesConfigPage';
 import { CategoriesPage } from '../pages/CategoriesPage';
 import { ProductsPage } from '../pages/ProductsPage';
 import { InventoryPage } from '../pages/InventoryPage';
@@ -203,6 +204,18 @@ export const AppRouter = () => (
             <Route
               path="/configuracion/conceptos-caja"
               element={<CashConceptsConfigPage />}
+            />
+          </Route>
+          <Route
+            element={
+              <PermissionRoute
+                permissions={[PERMISSIONS.INVENTARIO_MOTIVOS_GESTIONAR]}
+              />
+            }
+          >
+            <Route
+              path="/configuracion/motivos-inventario"
+              element={<InventoryMotivesConfigPage />}
             />
           </Route>
 

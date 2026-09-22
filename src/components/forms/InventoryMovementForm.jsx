@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowDown, ArrowUp, SlidersHorizontal, Package, AlertTriangle } from 'lucide-react';
 import { Input } from '../ui/Input';
+import { Select } from '../ui/Select';
 import { ProductPicker } from '../catalog/ProductPicker';
 import { ProductImage } from '../catalog/ProductImage';
 import { ProductMetaChips } from '../catalog/ProductMetaChips';
 import { movementFormSchema } from '../../validations/commercialSchemas';
-import { formatNumber } from '../../utils/formatCurrency';
+import { inventoryMotiveService } from '../../services/inventoryMotiveService';
+import { formatCurrency, formatNumber } from '../../utils/formatCurrency';
 
 const TIPO_OPTIONS = [
   {
@@ -49,17 +51,29 @@ export const InventoryMovementForm = ({
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(movementFormSchema),
-    defaultValues: { producto_id: '', tipo: 'entrada', cantidad: '', motivo: '' },
+    defaultValues: {
+      producto_id: '',
+      tipo: 'entrada',
+      cantidad: '',
+      motivo: '',
+      motivo_select: '',
+      motivo_detalle: '',
+    },
   });
 
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [motives, setMotives] = useState([]);
   const tipo = watch('tipo');
   const cantidad = watch('cantidad');
+  const motivoSelect = watch('motivo_select');
+  const motivoDetalle = watch('motivo_detalle');
   const cantidadNum = Number(cantidad) || 0;
   const stockActual = Number(selectedProduct?.stock) || 0;
+  const precioCosto = Number(selectedProduct?.precio_costo) || 0;
 
   const stockInsuficiente =
     tipo === 'salida' && selectedProduct && cantidadNum > 0 && cantidadNum > stockActual;
@@ -73,7 +87,74 @@ export const InventoryMovementForm = ({
           : cantidadNum
       : null;
 
-  const handleFormSubmit = (data) => onSubmit(data);
+  const valorEstimado =
+    tipo === 'entrada' &&
+    motivoSelect &&
+    motivoSelect !== '__otro__' &&
+    motivoSelect.toLowerCase().includes('compra de mercader') &&
+    cantidadNum > 0 &&
+    precioCosto > 0
+      ? cantidadNum * precioCosto
+      : null;
+
+  const motiveOptions = useMemo(() => {
+    const filtered = motives.filter((m) => {
+      if (tipo === 'entrada') return m.tipo === 'entrada' || m.tipo === 'ambos';
+      if (tipo === 'salida') return m.tipo === 'salida' || m.tipo === 'ambos';
+      return true; // ajuste: todos los motivos activos
+    });
+    return [
+      { value: '', label: 'Seleccionar motivo…' },
+      ...filtered.map((m) => ({ value: m.nombre, label: m.nombre })),
+      { value: '__otro__', label: 'Otro (escribir manualmente)' },
+    ];
+  }, [motives, tipo]);
+
+  useEffect(() => {
+    let cancelled = false;
+    inventoryMotiveService
+      .list({ activos: true })
+      .then((data) => {
+        if (!cancelled) {
+          const list = Array.isArray(data) ? data : [];
+          setMotives(list);
+          if (list.length === 0) setValue('motivo_select', '__otro__');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMotives([]);
+          setValue('motivo_select', '__otro__');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [setValue]);
+
+  useEffect(() => {
+    if (motivoSelect && motivoSelect !== '__otro__') {
+      const stillValid = motiveOptions.some((o) => o.value === motivoSelect);
+      if (!stillValid) setValue('motivo_select', '');
+    }
+  }, [tipo, motiveOptions, motivoSelect, setValue]);
+
+  const handleFormSubmit = (data) => {
+    let motivo = '';
+    if (data.motivo_select === '__otro__') {
+      motivo = (data.motivo_detalle || '').trim();
+    } else if (data.motivo_select) {
+      const detalle = (data.motivo_detalle || '').trim();
+      motivo = detalle ? `${data.motivo_select} — ${detalle}` : data.motivo_select;
+    }
+
+    onSubmit({
+      producto_id: data.producto_id,
+      tipo: data.tipo,
+      cantidad: data.cantidad,
+      motivo,
+    });
+  };
 
   return (
     <form id={formId} onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
@@ -154,38 +235,77 @@ export const InventoryMovementForm = ({
               <span className="font-semibold tabular-nums">
                 {formatNumber(stockActual, 2)} {selectedProduct.unidad_medida || 'unidad'}
               </span>
+              {precioCosto > 0 && (
+                <span className="text-slate-500">
+                  {' '}
+                  · Costo {formatCurrency(precioCosto)}
+                </span>
+              )}
             </p>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <Input
+        id="cantidad"
+        label={tipo === 'ajuste' ? 'Nuevo stock total' : 'Cantidad'}
+        type="number"
+        step="0.001"
+        min="0"
+        size="md"
+        hint={
+          tipo === 'ajuste'
+            ? 'El stock quedará en este valor exacto'
+            : tipo === 'salida'
+              ? 'Se descontará del stock actual'
+              : 'Se sumará al stock actual'
+        }
+        error={errors.cantidad?.message}
+        {...register('cantidad')}
+      />
+
+      <Select
+        id="motivo_select"
+        label="Motivo"
+        value={motivoSelect}
+        onChange={(e) => setValue('motivo_select', e.target.value, { shouldValidate: true })}
+        options={motiveOptions}
+        error={errors.motivo_select?.message || errors.motivo_detalle?.message}
+      />
+
+      {(motivoSelect === '__otro__' || motivoSelect) && (
         <Input
-          id="cantidad"
-          label={tipo === 'ajuste' ? 'Nuevo stock total' : 'Cantidad'}
-          type="number"
-          step="0.001"
-          min="0"
-          size="md"
-          hint={
-            tipo === 'ajuste'
-              ? 'El stock quedará en este valor exacto'
-              : tipo === 'salida'
-                ? 'Se descontará del stock actual'
-                : 'Se sumará al stock actual'
+          id="motivo_detalle"
+          label={
+            motivoSelect === '__otro__' ? 'Escriba el motivo' : 'Detalle opcional'
           }
-          error={errors.cantidad?.message}
-          {...register('cantidad')}
-        />
-        <Input
-          id="motivo"
-          label="Motivo"
           size="md"
-          placeholder="Ej: Compra proveedor, merma…"
-          error={errors.motivo?.message}
-          {...register('motivo')}
+          placeholder={
+            motivoSelect === '__otro__'
+              ? 'Ej: Compra proveedor Juan'
+              : 'Nota adicional (opcional)'
+          }
+          value={motivoDetalle || ''}
+          onChange={(e) => setValue('motivo_detalle', e.target.value)}
+          error={errors.motivo_detalle?.message}
         />
-      </div>
+      )}
+
+      {valorEstimado != null && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
+          Valor estimado a costo:{' '}
+          <span className="font-semibold tabular-nums">{formatCurrency(valorEstimado)}</span>
+          <span className="block text-xs text-emerald-700 mt-0.5">
+            Se usa para conciliar con egresos de «Compra de mercadería» en Reportes.
+          </span>
+        </div>
+      )}
+
+      {motives.length === 0 && (
+        <p className="text-xs text-amber-700">
+          No hay motivos cargados. Configurelos en Configuración → Motivos de inventario.
+        </p>
+      )}
 
       {stockInsuficiente && (
         <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">

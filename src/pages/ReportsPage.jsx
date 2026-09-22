@@ -15,6 +15,7 @@ import {
   ArrowUpCircle,
   Scale,
   PiggyBank,
+  ClipboardList,
 } from 'lucide-react';
 import { reportService } from '../services/reportService';
 import { cashConceptService } from '../services/cashConceptService';
@@ -31,9 +32,12 @@ import { formatDate, formatDateOnly } from '../utils/formatDate';
 import { getErrorMessage } from '../utils/getErrorMessage';
 import { exportReportExcel, exportReportPdf } from '../utils/exportReport';
 
+const COMPRA_CONCEPTO = 'Compra de mercadería';
+
 const TABS = [
   { id: 'ingresos', label: 'Ingresos', icon: TrendingUp },
   { id: 'egresos', label: 'Egresos', icon: ArrowDownCircle },
+  { id: 'compras', label: 'Compras', icon: Package },
   { id: 'resultado', label: 'Resultado', icon: Scale },
 ];
 
@@ -107,6 +111,7 @@ export const ReportsPage = () => {
   const [salesByUser, setSalesByUser] = useState([]);
   const [expenses, setExpenses] = useState(null);
   const [resultado, setResultado] = useState(null);
+  const [compras, setCompras] = useState(null);
   const [exporting, setExporting] = useState(null);
   const [expenseDescFilter, setExpenseDescFilter] = useState('');
   const [expenseConcepts, setExpenseConcepts] = useState([]);
@@ -140,15 +145,20 @@ export const ReportsPage = () => {
     setLoading(true);
     setError('');
     try {
-      const [dash, byDay, top, stock, byUser, egresos, res] = await Promise.all([
-        reportService.dashboard(params),
-        reportService.salesByDay(params),
-        reportService.topProducts({ ...params, limit: 8 }),
-        reportService.lowStock(),
-        reportService.salesByUser(params),
-        reportService.expenses(expenseParams),
-        reportService.resultado(params),
-      ]);
+      const [dash, byDay, top, stock, byUser, egresos, res, comprasRep] =
+        await Promise.all([
+          reportService.dashboard(params),
+          reportService.salesByDay(params),
+          reportService.topProducts({ ...params, limit: 8 }),
+          reportService.lowStock(),
+          reportService.salesByUser(params),
+          reportService.expenses(expenseParams),
+          reportService.resultado(params),
+          reportService.comprasMercaderia({
+            ...params,
+            concepto: COMPRA_CONCEPTO,
+          }),
+        ]);
       setDashboard(dash);
       setSalesByDay(byDay);
       setTopProducts(top);
@@ -156,6 +166,7 @@ export const ReportsPage = () => {
       setSalesByUser(byUser);
       setExpenses(egresos);
       setResultado(res);
+      setCompras(comprasRep);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -217,6 +228,7 @@ export const ReportsPage = () => {
     lowStock,
     expenses,
     resultado,
+    compras,
   };
 
   const handleExportExcel = async () => {
@@ -246,12 +258,20 @@ export const ReportsPage = () => {
   const headerSummary =
     tab === 'egresos'
       ? expenses?.resumen?.total
-      : tab === 'resultado'
-        ? resultado?.resultado_neto
-        : dashboard?.ventas?.ingresos;
+      : tab === 'compras'
+        ? compras?.diferencia
+        : tab === 'resultado'
+          ? resultado?.resultado_neto
+          : dashboard?.ventas?.ingresos;
 
   const headerLabel =
-    tab === 'egresos' ? 'egresos' : tab === 'resultado' ? 'resultado neto' : 'ingresos';
+    tab === 'egresos'
+      ? 'egresos'
+      : tab === 'compras'
+        ? 'diferencia compras'
+        : tab === 'resultado'
+          ? 'resultado neto'
+          : 'ingresos';
 
   return (
     <div className="space-y-6">
@@ -271,7 +291,8 @@ export const ReportsPage = () => {
             <span className="tabular-nums">
               <strong
                 className={
-                  tab === 'resultado' && Number(headerSummary) < 0
+                  (tab === 'resultado' || tab === 'compras') &&
+                  Number(headerSummary) < 0
                     ? 'text-red-700'
                     : 'text-slate-800'
                 }
@@ -758,6 +779,160 @@ export const ReportsPage = () => {
                   )}
                 </div>
               </Card>
+            </>
+          )}
+
+          {tab === 'compras' && compras && (
+            <>
+              <Card className="!p-4">
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Compara los egresos de caja con descripción{' '}
+                  <strong>«{compras.concepto}»</strong> contra el valor a costo de las
+                  entradas de inventario con el mismo motivo. Si gastaste $20.000 en caja e
+                  ingresaste mercadería por $20.000 de costo, la diferencia debe ser ~0.
+                </p>
+              </Card>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <KpiCard
+                  icon={ArrowDownCircle}
+                  label="Egresos en caja"
+                  value={formatCurrency(compras.egresos_caja)}
+                  hint={`${compras.cantidad_egresos} egresos · ${compras.concepto}`}
+                  accent="red"
+                />
+                <KpiCard
+                  icon={Package}
+                  label="Entradas a costo"
+                  value={formatCurrency(compras.valor_entradas)}
+                  hint={`${compras.cantidad_entradas} mov. · ${formatNumber(compras.unidades_entradas, 2)} uds`}
+                  accent="emerald"
+                />
+                <KpiCard
+                  icon={Scale}
+                  label="Diferencia"
+                  value={formatCurrency(compras.diferencia)}
+                  hint={
+                    compras.coinciden
+                      ? 'Cuadran correctamente'
+                      : compras.diferencia > 0
+                        ? 'Gastaste más de lo ingresado a costo'
+                        : 'Ingresaste más valor del egresado'
+                  }
+                  accent={compras.coinciden ? 'brand' : 'amber'}
+                />
+                <KpiCard
+                  icon={ClipboardList}
+                  label="Estado"
+                  value={compras.coinciden ? 'OK' : 'Revisar'}
+                  hint={
+                    compras.productos_sin_costo > 0
+                      ? `${compras.productos_sin_costo} producto(s) sin costo`
+                      : 'Usando precio de costo actual'
+                  }
+                  accent={compras.coinciden ? 'emerald' : 'amber'}
+                />
+              </div>
+
+              {compras.productos_sin_costo > 0 && (
+                <Alert variant="info" className="!py-2.5 text-sm">
+                  Hay {compras.productos_sin_costo} producto(s) en las entradas sin precio de
+                  costo. Completá el costo en el catálogo para que el valor coincida con caja.
+                </Alert>
+              )}
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={ArrowDownCircle}
+                    title="Egresos de caja"
+                    subtitle={`Concepto «${compras.concepto}»`}
+                  />
+                  <div className="px-4 sm:px-6 pb-6">
+                    {compras.detalle_egresos.length === 0 ? (
+                      <EmptyState
+                        title="Sin egresos"
+                        description="No hay egresos con ese concepto en el período"
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-left text-slate-500">
+                              <th className="py-2 pr-3 font-medium">Fecha</th>
+                              <th className="py-2 pr-3 font-medium">Descripción</th>
+                              <th className="py-2 text-right font-medium">Monto</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {compras.detalle_egresos.map((e) => (
+                              <tr key={e.id} className="border-b border-slate-100">
+                                <td className="py-2.5 pr-3 text-xs text-slate-500 whitespace-nowrap">
+                                  {formatDate(e.fecha)}
+                                </td>
+                                <td className="py-2.5 pr-3 text-slate-800">{e.descripcion}</td>
+                                <td className="py-2.5 text-right font-semibold text-red-700 tabular-nums">
+                                  −{formatCurrency(e.monto)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={Package}
+                    title="Entradas de inventario"
+                    subtitle="Valor = cantidad × precio de costo"
+                  />
+                  <div className="px-4 sm:px-6 pb-6">
+                    {compras.detalle_entradas.length === 0 ? (
+                      <EmptyState
+                        title="Sin entradas"
+                        description="No hay entradas con ese motivo en el período"
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-left text-slate-500">
+                              <th className="py-2 pr-3 font-medium">Fecha</th>
+                              <th className="py-2 pr-3 font-medium">Producto</th>
+                              <th className="py-2 pr-3 text-right font-medium">Cant.</th>
+                              <th className="py-2 text-right font-medium">Valor</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {compras.detalle_entradas.map((e) => (
+                              <tr key={e.id} className="border-b border-slate-100">
+                                <td className="py-2.5 pr-3 text-xs text-slate-500 whitespace-nowrap">
+                                  {formatDate(e.fecha)}
+                                </td>
+                                <td className="py-2.5 pr-3 text-slate-800">
+                                  <span className="font-medium">{e.producto_nombre}</span>
+                                  <span className="block text-xs text-slate-400">
+                                    {formatCurrency(e.precio_costo)} / ud
+                                  </span>
+                                </td>
+                                <td className="py-2.5 pr-3 text-right tabular-nums text-slate-600">
+                                  {formatNumber(e.cantidad, 2)}
+                                </td>
+                                <td className="py-2.5 text-right font-semibold text-emerald-700 tabular-nums">
+                                  {formatCurrency(e.valor_costo)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
             </>
           )}
 
