@@ -11,6 +11,10 @@ import {
   RefreshCw,
   FileSpreadsheet,
   FileDown,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Scale,
+  PiggyBank,
 } from 'lucide-react';
 import { reportService } from '../services/reportService';
 import { Card } from '../components/ui/Card';
@@ -21,9 +25,15 @@ import { EmptyState } from '../components/common/EmptyState';
 import { CompactPeriodFilter } from '../components/common/CompactPeriodFilter';
 import { getDefaultDateRange, getPresetRange, isValidDateRange } from '../utils/dateRange';
 import { formatCurrency, formatNumber } from '../utils/formatCurrency';
-import { formatDateOnly } from '../utils/formatDate';
+import { formatDate, formatDateOnly } from '../utils/formatDate';
 import { getErrorMessage } from '../utils/getErrorMessage';
 import { exportReportExcel, exportReportPdf } from '../utils/exportReport';
+
+const TABS = [
+  { id: 'ingresos', label: 'Ingresos', icon: TrendingUp },
+  { id: 'egresos', label: 'Egresos', icon: ArrowDownCircle },
+  { id: 'resultado', label: 'Resultado', icon: Scale },
+];
 
 const SectionHeader = ({ icon: Icon, title, subtitle }) => (
   <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-start gap-2">
@@ -35,8 +45,55 @@ const SectionHeader = ({ icon: Icon, title, subtitle }) => (
   </div>
 );
 
+const KpiCard = ({ icon: Icon, label, value, hint, accent = 'brand' }) => {
+  const accents = {
+    brand: 'border-l-brand-500 text-brand-700',
+    emerald: 'border-l-emerald-500 text-emerald-700',
+    amber: 'border-l-amber-500 text-amber-800',
+    red: 'border-l-red-400 text-red-600',
+    slate: 'border-l-slate-400 text-slate-800',
+    sky: 'border-l-sky-500 text-sky-800',
+  };
+  return (
+    <Card className={`!p-5 border-l-4 ${accents[accent] || accents.brand}`}>
+      <p className="text-sm text-slate-500 flex items-center gap-1">
+        {Icon && <Icon className="w-4 h-4" />} {label}
+      </p>
+      <p className={`text-2xl font-bold mt-1 tabular-nums ${accents[accent]?.split(' ')[1] || ''}`}>
+        {value}
+      </p>
+      {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
+    </Card>
+  );
+};
+
+const BarList = ({ items, getKey, getLabel, getValue, getMeta, maxValue, barClass = 'bg-brand-500' }) => (
+  <div className="space-y-3">
+    {items.map((item) => (
+      <div key={getKey(item)}>
+        <div className="flex justify-between items-baseline gap-2 text-sm mb-1.5">
+          <span className="font-medium text-slate-700 truncate">{getLabel(item)}</span>
+          <span className="text-slate-600 tabular-nums shrink-0">
+            {formatCurrency(getValue(item))}
+            {getMeta ? (
+              <span className="text-xs text-slate-400"> {getMeta(item)}</span>
+            ) : null}
+          </span>
+        </div>
+        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${barClass}`}
+            style={{ width: `${Math.max((getValue(item) / Math.max(maxValue, 1)) * 100, 4)}%` }}
+          />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 export const ReportsPage = () => {
   const defaultRange = getDefaultDateRange();
+  const [tab, setTab] = useState('ingresos');
   const [fechaDesde, setFechaDesde] = useState(defaultRange.fecha_desde);
   const [fechaHasta, setFechaHasta] = useState(defaultRange.fecha_hasta);
   const [loading, setLoading] = useState(true);
@@ -46,6 +103,8 @@ export const ReportsPage = () => {
   const [topProducts, setTopProducts] = useState([]);
   const [lowStock, setLowStock] = useState([]);
   const [salesByUser, setSalesByUser] = useState([]);
+  const [expenses, setExpenses] = useState(null);
+  const [resultado, setResultado] = useState(null);
   const [exporting, setExporting] = useState(null);
 
   const loadReports = useCallback(async () => {
@@ -58,18 +117,22 @@ export const ReportsPage = () => {
     setLoading(true);
     setError('');
     try {
-      const [dash, byDay, top, stock, byUser] = await Promise.all([
+      const [dash, byDay, top, stock, byUser, egresos, res] = await Promise.all([
         reportService.dashboard(params),
         reportService.salesByDay(params),
         reportService.topProducts({ ...params, limit: 8 }),
         reportService.lowStock(),
         reportService.salesByUser(params),
+        reportService.expenses(params),
+        reportService.resultado(params),
       ]);
       setDashboard(dash);
       setSalesByDay(byDay);
       setTopProducts(top);
       setLowStock(stock);
       setSalesByUser(byUser);
+      setExpenses(egresos);
+      setResultado(res);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -90,6 +153,7 @@ export const ReportsPage = () => {
 
   const maxDayTotal = Math.max(...salesByDay.map((d) => d.total), 1);
   const maxUserTotal = Math.max(...salesByUser.map((u) => u.total), 1);
+  const maxExpenseDay = Math.max(...(expenses?.por_dia?.map((d) => d.total) || [0]), 1);
 
   const exportPayload = {
     fechaDesde,
@@ -99,6 +163,8 @@ export const ReportsPage = () => {
     topProducts,
     salesByUser,
     lowStock,
+    expenses,
+    resultado,
   };
 
   const handleExportExcel = async () => {
@@ -125,6 +191,16 @@ export const ReportsPage = () => {
     }
   };
 
+  const headerSummary =
+    tab === 'egresos'
+      ? expenses?.resumen?.total
+      : tab === 'resultado'
+        ? resultado?.resultado_neto
+        : dashboard?.ventas?.ingresos;
+
+  const headerLabel =
+    tab === 'egresos' ? 'egresos' : tab === 'resultado' ? 'resultado neto' : 'ingresos';
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -134,15 +210,23 @@ export const ReportsPage = () => {
             Reportes
           </h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            Ventas, ingresos, productos e inventario según el período
+            Ingresos, egresos y resultado neto del período
           </p>
         </div>
-        {dashboard && !loading && (
+        {dashboard && !loading && headerSummary != null && (
           <div className="flex items-center gap-2 text-sm text-slate-600 bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-sm">
             <TrendingUp className="w-4 h-4 text-brand-600 shrink-0" />
             <span className="tabular-nums">
-              <strong className="text-slate-800">{formatCurrency(dashboard.ventas.ingresos)}</strong>{' '}
-              en el período
+              <strong
+                className={
+                  tab === 'resultado' && Number(headerSummary) < 0
+                    ? 'text-red-700'
+                    : 'text-slate-800'
+                }
+              >
+                {formatCurrency(headerSummary)}
+              </strong>{' '}
+              {headerLabel}
             </span>
           </div>
         )}
@@ -165,7 +249,6 @@ export const ReportsPage = () => {
                 onClick={handleExportExcel}
                 disabled={loading || exporting || !dashboard}
                 className="h-11"
-                aria-label="Exportar Excel"
               >
                 <FileSpreadsheet className="w-4 h-4" />
                 <span className="hidden sm:inline">Excel</span>
@@ -175,7 +258,6 @@ export const ReportsPage = () => {
                 onClick={handleExportPdf}
                 disabled={loading || exporting || !dashboard}
                 className="h-11"
-                aria-label="Exportar PDF"
               >
                 <FileDown className="w-4 h-4" />
                 <span className="hidden sm:inline">PDF</span>
@@ -185,12 +267,31 @@ export const ReportsPage = () => {
                 onClick={loadReports}
                 disabled={loading || !isValidDateRange(fechaDesde, fechaHasta)}
                 className="h-11"
-                aria-label="Actualizar reporte"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">Actualizar</span>
               </Button>
             </div>
+          </div>
+        </div>
+
+        <div className="px-4 sm:px-6 py-3 border-b border-slate-100 bg-slate-50/60">
+          <div className="inline-flex w-full sm:w-auto rounded-xl border border-slate-200 bg-white p-1 gap-1">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  tab === id
+                    ? 'bg-brand-500 text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       </Card>
@@ -205,217 +306,502 @@ export const ReportsPage = () => {
 
       {dashboard && (
         <div className={`space-y-6 ${loading ? 'opacity-60 pointer-events-none' : ''}`}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <Card className="!p-5 border-l-4 border-l-brand-500">
-              <p className="text-sm text-slate-500 flex items-center gap-1">
-                <TrendingUp className="w-4 h-4" /> Ingresos del período
-              </p>
-              <p className="text-2xl font-bold text-brand-700 mt-1 tabular-nums">
-                {formatCurrency(dashboard.ventas.ingresos)}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">
-                {dashboard.ventas.cantidad} ventas completadas
-              </p>
-            </Card>
-            <Card className="!p-5 border-l-4 border-l-emerald-500">
-              <p className="text-sm text-slate-500 flex items-center gap-1">
-                <Receipt className="w-4 h-4" /> Ticket promedio
-              </p>
-              <p className="text-2xl font-bold text-slate-800 mt-1 tabular-nums">
-                {formatCurrency(dashboard.ventas.ticket_promedio)}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">Por venta completada</p>
-            </Card>
-            <Card className="!p-5 border-l-4 border-l-amber-500">
-              <p className="text-sm text-slate-500 flex items-center gap-1">
-                <XCircle className="w-4 h-4" /> Ventas anuladas
-              </p>
-              <p className="text-2xl font-bold text-amber-800 mt-1 tabular-nums">
-                {dashboard.ventas.anuladas}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">En el mismo período</p>
-            </Card>
-            <Card className="!p-5 border-l-4 border-l-red-400">
-              <p className="text-sm text-slate-500 flex items-center gap-1">
-                <AlertTriangle className="w-4 h-4" /> Stock bajo
-              </p>
-              <p className="text-2xl font-bold text-red-600 mt-1 tabular-nums">
-                {dashboard.inventario.productos_stock_bajo}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">Productos bajo mínimo</p>
-            </Card>
-          </div>
-
-          {dashboard.por_metodo_pago?.length > 0 && (
-            <Card className="!p-0 overflow-hidden">
-              <SectionHeader
-                icon={Wallet}
-                title="Ingresos por método de pago"
-                subtitle="Desglose del período seleccionado"
-              />
-              <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {dashboard.por_metodo_pago.map((m) => {
-                  const share =
-                    dashboard.ventas.ingresos > 0
-                      ? Math.round((m.total / dashboard.ventas.ingresos) * 100)
-                      : 0;
-                  return (
-                    <div
-                      key={m.metodo_pago}
-                      className="p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-brand-200 transition-colors"
-                    >
-                      <p className="text-sm font-semibold text-slate-800 truncate">
-                        {m.metodo_pago_nombre || m.metodo_pago}
-                      </p>
-                      <p className="text-xl font-bold text-slate-900 tabular-nums mt-1">
-                        {formatCurrency(m.total)}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {m.cantidad} operaciones · {share}%
-                      </p>
-                    </div>
-                  );
-                })}
+          {tab === 'ingresos' && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <KpiCard
+                  icon={TrendingUp}
+                  label="Ingresos del período"
+                  value={formatCurrency(dashboard.ventas.ingresos)}
+                  hint={`${dashboard.ventas.cantidad} ventas completadas`}
+                  accent="brand"
+                />
+                <KpiCard
+                  icon={Receipt}
+                  label="Ticket promedio"
+                  value={formatCurrency(dashboard.ventas.ticket_promedio)}
+                  hint="Por venta completada"
+                  accent="emerald"
+                />
+                <KpiCard
+                  icon={XCircle}
+                  label="Ventas anuladas"
+                  value={dashboard.ventas.anuladas}
+                  hint="En el mismo período"
+                  accent="amber"
+                />
+                <KpiCard
+                  icon={AlertTriangle}
+                  label="Stock bajo"
+                  value={dashboard.inventario.productos_stock_bajo}
+                  hint="Productos bajo mínimo"
+                  accent="red"
+                />
               </div>
-            </Card>
-          )}
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <Card className="!p-0 overflow-hidden">
-              <SectionHeader icon={BarChart3} title="Ventas por día" subtitle="Evolución diaria" />
-              <div className="px-4 sm:px-6 pb-6">
-                {salesByDay.length === 0 ? (
-                  <EmptyState
-                    title="Sin ventas"
-                    description="No hay ventas registradas en este período"
+              {dashboard.por_metodo_pago?.length > 0 && (
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={Wallet}
+                    title="Ingresos por método de pago"
+                    subtitle="Desglose del período seleccionado"
                   />
-                ) : (
-                  <div className="space-y-4">
-                    {salesByDay.map((d) => (
-                      <div key={d.fecha}>
-                        <div className="flex justify-between items-baseline gap-2 text-sm mb-1.5">
-                          <span className="font-medium text-slate-700">
-                            {formatDateOnly(d.fecha)}
-                          </span>
-                          <span className="text-slate-600 tabular-nums shrink-0">
-                            {formatCurrency(d.total)}{' '}
-                            <span className="text-xs text-slate-400">({d.cantidad})</span>
-                          </span>
-                        </div>
-                        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-brand-500 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.max((d.total / maxDayTotal) * 100, 4)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            <Card className="!p-0 overflow-hidden">
-              <SectionHeader
-                icon={Package}
-                title="Productos más vendidos"
-                subtitle="Top 8 por ingresos"
-              />
-              <div className="px-4 sm:px-6 pb-6">
-                {topProducts.length === 0 ? (
-                  <EmptyState title="Sin datos" description="No hay productos vendidos en el período" />
-                ) : (
-                  <ul className="space-y-2">
-                    {topProducts.map((p, i) => (
-                      <li
-                        key={p.producto_id}
-                        className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-white hover:bg-slate-50/80"
-                      >
-                        <span
-                          className={`w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${
-                            i === 0
-                              ? 'bg-brand-500 text-slate-900'
-                              : 'bg-brand-100 text-brand-800'
-                          }`}
+                  <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {dashboard.por_metodo_pago.map((m) => {
+                      const share =
+                        dashboard.ventas.ingresos > 0
+                          ? Math.round((m.total / dashboard.ventas.ingresos) * 100)
+                          : 0;
+                      return (
+                        <div
+                          key={m.metodo_pago}
+                          className="p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-brand-200 transition-colors"
                         >
-                          {i + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-slate-800 truncate">{p.producto_nombre}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            {formatNumber(p.cantidad_vendida, 2)} uds ·{' '}
-                            {formatCurrency(p.ingresos)}
+                          <p className="text-sm font-semibold text-slate-800 truncate">
+                            {m.metodo_pago_nombre || m.metodo_pago}
+                          </p>
+                          <p className="text-xl font-bold text-slate-900 tabular-nums mt-1">
+                            {formatCurrency(m.total)}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {m.cantidad} operaciones · {share}%
                           </p>
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </Card>
-          </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
 
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <Card className="!p-0 overflow-hidden">
-              <SectionHeader icon={Users} title="Ventas por vendedor" subtitle="Ranking del período" />
-              <div className="px-4 sm:px-6 pb-6">
-                {salesByUser.length === 0 ? (
-                  <EmptyState title="Sin datos" description="No hay ventas por vendedor en el período" />
-                ) : (
-                  <div className="space-y-3">
-                    {salesByUser.map((u) => (
-                      <div key={u.usuario_id} className="space-y-1">
-                        <div className="flex justify-between text-sm gap-2">
-                          <span className="font-medium text-slate-800 truncate">{u.nombre_usuario}</span>
-                          <span className="tabular-nums text-slate-700 shrink-0">
-                            {formatCurrency(u.total)}{' '}
-                            <span className="text-xs text-slate-400">({u.cantidad})</span>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader icon={BarChart3} title="Ventas por día" subtitle="Evolución diaria" />
+                  <div className="px-4 sm:px-6 pb-6">
+                    {salesByDay.length === 0 ? (
+                      <EmptyState
+                        title="Sin ventas"
+                        description="No hay ventas registradas en este período"
+                      />
+                    ) : (
+                      <BarList
+                        items={salesByDay}
+                        getKey={(d) => d.fecha}
+                        getLabel={(d) => formatDateOnly(d.fecha)}
+                        getValue={(d) => d.total}
+                        getMeta={(d) => `(${d.cantidad})`}
+                        maxValue={maxDayTotal}
+                      />
+                    )}
+                  </div>
+                </Card>
+
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={Package}
+                    title="Productos más vendidos"
+                    subtitle="Top 8 por ingresos"
+                  />
+                  <div className="px-4 sm:px-6 pb-6">
+                    {topProducts.length === 0 ? (
+                      <EmptyState
+                        title="Sin datos"
+                        description="No hay productos vendidos en el período"
+                      />
+                    ) : (
+                      <ul className="space-y-2">
+                        {topProducts.map((p, i) => (
+                          <li
+                            key={p.producto_id}
+                            className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-white hover:bg-slate-50/80"
+                          >
+                            <span
+                              className={`w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${
+                                i === 0
+                                  ? 'bg-brand-500 text-slate-900'
+                                  : 'bg-brand-100 text-brand-800'
+                              }`}
+                            >
+                              {i + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-800 truncate">
+                                {p.producto_nombre}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                {formatNumber(p.cantidad_vendida, 2)} uds ·{' '}
+                                {formatCurrency(p.ingresos)}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={Users}
+                    title="Ventas por vendedor"
+                    subtitle="Ranking del período"
+                  />
+                  <div className="px-4 sm:px-6 pb-6">
+                    {salesByUser.length === 0 ? (
+                      <EmptyState
+                        title="Sin datos"
+                        description="No hay ventas por vendedor en el período"
+                      />
+                    ) : (
+                      <BarList
+                        items={salesByUser}
+                        getKey={(u) => u.usuario_id}
+                        getLabel={(u) => u.nombre_usuario}
+                        getValue={(u) => u.total}
+                        getMeta={(u) => `(${u.cantidad})`}
+                        maxValue={maxUserTotal}
+                        barClass="bg-slate-600"
+                      />
+                    )}
+                  </div>
+                </Card>
+
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={AlertTriangle}
+                    title="Alertas de stock bajo"
+                    subtitle="Inventario actual (sin filtro de fecha)"
+                  />
+                  <div className="px-4 sm:px-6 pb-6">
+                    {lowStock.length === 0 ? (
+                      <div className="text-sm text-emerald-700 py-8 text-center rounded-xl bg-emerald-50 border border-emerald-100">
+                        Todos los productos con stock adecuado
+                      </div>
+                    ) : (
+                      <ul className="space-y-2 max-h-72 overflow-y-auto overscroll-contain">
+                        {lowStock.map((p) => (
+                          <li
+                            key={p.id}
+                            className="flex justify-between items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100 text-sm"
+                          >
+                            <span className="font-medium text-slate-800 truncate">{p.nombre}</span>
+                            <span className="text-amber-900 tabular-nums shrink-0 text-xs">
+                              {formatNumber(p.stock, 2)} / {formatNumber(p.stock_minimo, 2)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </>
+          )}
+
+          {tab === 'egresos' && expenses && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <KpiCard
+                  icon={ArrowDownCircle}
+                  label="Total egresos"
+                  value={formatCurrency(expenses.resumen.total)}
+                  hint={`${expenses.resumen.cantidad} movimientos de caja`}
+                  accent="red"
+                />
+                <KpiCard
+                  icon={Receipt}
+                  label="Promedio por egreso"
+                  value={formatCurrency(expenses.resumen.promedio)}
+                  hint="En el período seleccionado"
+                  accent="amber"
+                />
+                <KpiCard
+                  icon={Wallet}
+                  label="Métodos usados"
+                  value={expenses.por_metodo.length}
+                  hint="Formas de salida de dinero"
+                  accent="slate"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={BarChart3}
+                    title="Egresos por día"
+                    subtitle="Salidas de caja registradas"
+                  />
+                  <div className="px-4 sm:px-6 pb-6">
+                    {expenses.por_dia.length === 0 ? (
+                      <EmptyState
+                        title="Sin egresos"
+                        description="No hay egresos de caja en este período"
+                      />
+                    ) : (
+                      <BarList
+                        items={expenses.por_dia}
+                        getKey={(d) => d.fecha}
+                        getLabel={(d) => formatDateOnly(d.fecha)}
+                        getValue={(d) => d.total}
+                        getMeta={(d) => `(${d.cantidad})`}
+                        maxValue={maxExpenseDay}
+                        barClass="bg-red-500"
+                      />
+                    )}
+                  </div>
+                </Card>
+
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={Wallet}
+                    title="Egresos por método"
+                    subtitle="Cómo salió el dinero"
+                  />
+                  <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {expenses.por_metodo.length === 0 ? (
+                      <EmptyState title="Sin datos" description="Sin egresos en el período" />
+                    ) : (
+                      expenses.por_metodo.map((m) => {
+                        const share =
+                          expenses.resumen.total > 0
+                            ? Math.round((m.total / expenses.resumen.total) * 100)
+                            : 0;
+                        return (
+                          <div
+                            key={m.metodo_pago}
+                            className="p-4 rounded-xl bg-red-50/60 border border-red-100"
+                          >
+                            <p className="text-sm font-semibold text-slate-800 truncate">
+                              {m.metodo_pago_nombre}
+                            </p>
+                            <p className="text-xl font-bold text-red-700 tabular-nums mt-1">
+                              {formatCurrency(m.total)}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {m.cantidad} movimientos · {share}%
+                            </p>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              <Card className="!p-0 overflow-hidden">
+                <SectionHeader
+                  icon={ArrowDownCircle}
+                  title="Detalle de egresos"
+                  subtitle="Últimos 100 del período"
+                />
+                <div className="px-4 sm:px-6 pb-6">
+                  {expenses.detalle.length === 0 ? (
+                    <EmptyState
+                      title="Sin egresos"
+                      description="Registre egresos desde Caja para verlos aquí"
+                    />
+                  ) : (
+                    <>
+                      <div className="md:hidden space-y-2">
+                        {expenses.detalle.map((e) => (
+                          <div
+                            key={e.id}
+                            className="rounded-xl border border-slate-200 p-3 space-y-1"
+                          >
+                            <div className="flex justify-between gap-2">
+                              <p className="font-medium text-slate-800 text-sm">{e.descripcion}</p>
+                              <p className="font-bold text-red-700 tabular-nums shrink-0">
+                                −{formatCurrency(e.monto)}
+                              </p>
+                            </div>
+                            <p className="text-xs text-slate-500">
+                              {formatDate(e.fecha)} · {e.metodo_pago_nombre} · {e.usuario_nombre}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-left text-slate-500">
+                              <th className="py-2 pr-3 font-medium">Fecha</th>
+                              <th className="py-2 pr-3 font-medium">Descripción</th>
+                              <th className="py-2 pr-3 font-medium">Método</th>
+                              <th className="py-2 pr-3 font-medium">Usuario</th>
+                              <th className="py-2 text-right font-medium">Monto</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {expenses.detalle.map((e) => (
+                              <tr key={e.id} className="border-b border-slate-100">
+                                <td className="py-2.5 pr-3 text-xs text-slate-500 whitespace-nowrap">
+                                  {formatDate(e.fecha)}
+                                </td>
+                                <td className="py-2.5 pr-3 text-slate-800">{e.descripcion}</td>
+                                <td className="py-2.5 pr-3 text-slate-600">{e.metodo_pago_nombre}</td>
+                                <td className="py-2.5 pr-3 text-slate-500">{e.usuario_nombre}</td>
+                                <td className="py-2.5 text-right font-semibold text-red-700 tabular-nums">
+                                  −{formatCurrency(e.monto)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </Card>
+            </>
+          )}
+
+          {tab === 'resultado' && resultado && (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <KpiCard
+                  icon={ArrowUpCircle}
+                  label="Ingresos por ventas"
+                  value={formatCurrency(resultado.ingresos_ventas)}
+                  hint={`${resultado.cantidad_ventas} ventas`}
+                  accent="emerald"
+                />
+                <KpiCard
+                  icon={Package}
+                  label="Costo mercadería"
+                  value={formatCurrency(resultado.costo_mercaderia)}
+                  hint="Estimado con precio de costo actual"
+                  accent="amber"
+                />
+                <KpiCard
+                  icon={ArrowDownCircle}
+                  label="Egresos de caja"
+                  value={formatCurrency(resultado.egresos_caja)}
+                  hint={`${resultado.cantidad_egresos} egresos`}
+                  accent="red"
+                />
+                <KpiCard
+                  icon={PiggyBank}
+                  label="Resultado neto"
+                  value={formatCurrency(resultado.resultado_neto)}
+                  hint={`${resultado.resultado_pct}% sobre ventas`}
+                  accent={resultado.resultado_neto >= 0 ? 'brand' : 'red'}
+                />
+              </div>
+
+              {resultado.productos_sin_costo > 0 && (
+                <Alert variant="info" className="!py-2.5 text-sm">
+                  Hay {resultado.productos_sin_costo} producto(s) vendido(s) sin precio de costo
+                  cargado. El resultado es estimado: complete el costo en el catálogo para mayor
+                  precisión.
+                </Alert>
+              )}
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={Scale}
+                    title="Cómo se calcula el resultado"
+                    subtitle="Del período seleccionado"
+                  />
+                  <div className="px-4 sm:px-6 pb-6 space-y-2">
+                    {resultado.desglose.map((row) => {
+                      const isResult = row.tipo === 'resultado';
+                      const isSub = row.tipo === 'subtotal';
+                      return (
+                        <div
+                          key={row.concepto}
+                          className={`flex justify-between items-center gap-3 rounded-xl px-3 py-2.5 ${
+                            isResult
+                              ? 'bg-slate-900 text-white'
+                              : isSub
+                                ? 'bg-slate-100 border border-slate-200'
+                                : 'bg-slate-50 border border-slate-100'
+                          }`}
+                        >
+                          <span
+                            className={`text-sm ${
+                              isResult ? 'font-semibold' : 'text-slate-700'
+                            }`}
+                          >
+                            {row.concepto}
+                          </span>
+                          <span
+                            className={`tabular-nums font-semibold ${
+                              isResult
+                                ? row.monto >= 0
+                                  ? 'text-brand-400'
+                                  : 'text-red-300'
+                                : row.monto < 0
+                                  ? 'text-red-700'
+                                  : 'text-slate-900'
+                            }`}
+                          >
+                            {formatCurrency(row.monto)}
                           </span>
                         </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-slate-600 rounded-full"
-                            style={{
-                              width: `${Math.max((u.total / maxUserTotal) * 100, 6)}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-            </Card>
+                </Card>
 
-            <Card className="!p-0 overflow-hidden">
-              <SectionHeader
-                icon={AlertTriangle}
-                title="Alertas de stock bajo"
-                subtitle="Inventario actual (sin filtro de fecha)"
-              />
-              <div className="px-4 sm:px-6 pb-6">
-                {lowStock.length === 0 ? (
-                  <div className="text-sm text-emerald-700 py-8 text-center rounded-xl bg-emerald-50 border border-emerald-100">
-                    Todos los productos con stock adecuado
-                  </div>
-                ) : (
-                  <ul className="space-y-2 max-h-72 overflow-y-auto overscroll-contain">
-                    {lowStock.map((p) => (
-                      <li
-                        key={p.id}
-                        className="flex justify-between items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100 text-sm"
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={TrendingUp}
+                    title="Márgenes"
+                    subtitle="Visión rápida de rentabilidad"
+                  />
+                  <div className="p-4 sm:p-6 space-y-4">
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
+                      <p className="text-sm text-slate-600">Margen bruto</p>
+                      <p className="text-2xl font-bold text-emerald-800 tabular-nums mt-1">
+                        {formatCurrency(resultado.margen_bruto)}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Ventas − costo · {resultado.margen_bruto_pct}%
+                      </p>
+                      <div className="mt-3 h-2.5 bg-white/80 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full"
+                          style={{
+                            width: `${Math.min(Math.max(resultado.margen_bruto_pct, 0), 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      className={`rounded-xl border p-4 ${
+                        resultado.resultado_neto >= 0
+                          ? 'border-brand-200 bg-brand-50/70'
+                          : 'border-red-200 bg-red-50/70'
+                      }`}
+                    >
+                      <p className="text-sm text-slate-600">Resultado neto estimado</p>
+                      <p
+                        className={`text-2xl font-bold tabular-nums mt-1 ${
+                          resultado.resultado_neto >= 0 ? 'text-brand-800' : 'text-red-700'
+                        }`}
                       >
-                        <span className="font-medium text-slate-800 truncate">{p.nombre}</span>
-                        <span className="text-amber-900 tabular-nums shrink-0 text-xs">
-                          {formatNumber(p.stock, 2)} / {formatNumber(p.stock_minimo, 2)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                        {formatCurrency(resultado.resultado_neto)}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Después de egresos de caja
+                        {resultado.ingresos_caja_manuales > 0
+                          ? ` (+ ${formatCurrency(resultado.ingresos_caja_manuales)} ingresos manuales)`
+                          : ''}
+                      </p>
+                    </div>
+
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      El costo de mercadería usa el precio de costo actual de cada producto. Si
+                      cambió el costo después de vender, el valor es aproximado.
+                    </p>
+                  </div>
+                </Card>
               </div>
-            </Card>
-          </div>
+            </>
+          )}
         </div>
       )}
     </div>

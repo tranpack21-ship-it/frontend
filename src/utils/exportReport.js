@@ -18,11 +18,13 @@ export const exportReportExcel = async ({
   topProducts,
   salesByUser,
   lowStock,
+  expenses,
+  resultado,
 }) => {
   const XLSX = await import('xlsx');
 
   const resumen = [
-    ['Tran-Pack — Reporte de ventas'],
+    ['Tran-Pack — Reporte completo'],
     ['Período', `${fechaDesde} al ${fechaHasta}`],
     ['Generado', formatDateTime(new Date())],
     [],
@@ -32,6 +34,13 @@ export const exportReportExcel = async ({
     ['Ticket promedio', dashboard.ventas.ticket_promedio],
     ['Ventas anuladas', dashboard.ventas.anuladas],
     ['Productos con stock bajo', dashboard.inventario.productos_stock_bajo],
+    [],
+    ['Total egresos de caja', expenses?.resumen?.total ?? 0],
+    ['Cantidad de egresos', expenses?.resumen?.cantidad ?? 0],
+    [],
+    ['Costo mercadería (est.)', resultado?.costo_mercaderia ?? 0],
+    ['Margen bruto', resultado?.margen_bruto ?? 0],
+    ['Resultado neto estimado', resultado?.resultado_neto ?? 0],
   ];
 
   const porMetodo = [
@@ -76,6 +85,50 @@ export const exportReportExcel = async ({
     ]),
   ];
 
+  const egresosResumen = [
+    ['Tran-Pack — Egresos'],
+    ['Período', `${fechaDesde} al ${fechaHasta}`],
+    [],
+    ['Total egresos', expenses?.resumen?.total ?? 0],
+    ['Cantidad', expenses?.resumen?.cantidad ?? 0],
+    ['Promedio', expenses?.resumen?.promedio ?? 0],
+    [],
+    ['Método', 'Movimientos', 'Total'],
+    ...(expenses?.por_metodo || []).map((m) => [
+      m.metodo_pago_nombre,
+      m.cantidad,
+      m.total,
+    ]),
+  ];
+
+  const egresosDia = [
+    ['Fecha', 'Cantidad', 'Total'],
+    ...(expenses?.por_dia || []).map((d) => [d.fecha, d.cantidad, d.total]),
+  ];
+
+  const egresosDetalle = [
+    ['Fecha', 'Descripción', 'Método', 'Usuario', 'Monto'],
+    ...(expenses?.detalle || []).map((e) => [
+      e.fecha,
+      e.descripcion,
+      e.metodo_pago_nombre,
+      e.usuario_nombre,
+      e.monto,
+    ]),
+  ];
+
+  const resultadoSheet = [
+    ['Tran-Pack — Resultado neto'],
+    ['Período', `${fechaDesde} al ${fechaHasta}`],
+    [],
+    ['Concepto', 'Monto'],
+    ...(resultado?.desglose || []).map((r) => [r.concepto, r.monto]),
+    [],
+    ['Margen bruto %', resultado?.margen_bruto_pct ?? 0],
+    ['Resultado neto %', resultado?.resultado_pct ?? 0],
+    ['Productos sin costo', resultado?.productos_sin_costo ?? 0],
+  ];
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(resumen), 'Resumen');
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(porMetodo), 'Por método pago');
@@ -83,6 +136,10 @@ export const exportReportExcel = async ({
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(topProd), 'Top productos');
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(porVendedor), 'Por vendedor');
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(stockBajo), 'Stock bajo');
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(egresosResumen), 'Egresos');
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(egresosDia), 'Egresos por día');
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(egresosDetalle), 'Detalle egresos');
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(resultadoSheet), 'Resultado neto');
 
   XLSX.writeFile(workbook, buildFilename(fechaDesde, fechaHasta, 'xlsx'));
 };
@@ -95,6 +152,8 @@ export const exportReportPdf = async ({
   topProducts,
   salesByUser,
   lowStock,
+  expenses,
+  resultado,
 }) => {
   const { jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
@@ -102,6 +161,13 @@ export const exportReportPdf = async ({
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const margin = 14;
   let y = margin;
+
+  const ensureSpace = (needed = 40) => {
+    if (y > 280 - needed) {
+      doc.addPage();
+      y = margin;
+    }
+  };
 
   doc.setFontSize(16);
   doc.text('Tran-Pack — Reporte', margin, y);
@@ -122,6 +188,10 @@ export const exportReportPdf = async ({
       ['Ventas completadas', String(dashboard.ventas.cantidad)],
       ['Ticket promedio', formatCurrency(dashboard.ventas.ticket_promedio)],
       ['Ventas anuladas', String(dashboard.ventas.anuladas)],
+      ['Total egresos', formatCurrency(expenses?.resumen?.total ?? 0)],
+      ['Costo mercadería (est.)', formatCurrency(resultado?.costo_mercaderia ?? 0)],
+      ['Margen bruto', formatCurrency(resultado?.margen_bruto ?? 0)],
+      ['Resultado neto', formatCurrency(resultado?.resultado_neto ?? 0)],
       ['Stock bajo', String(dashboard.inventario.productos_stock_bajo)],
     ],
     styles: { fontSize: 9 },
@@ -131,6 +201,7 @@ export const exportReportPdf = async ({
   y = doc.lastAutoTable.finalY + 8;
 
   if (salesByDay.length > 0) {
+    ensureSpace();
     doc.setFontSize(12);
     doc.text('Ventas por día', margin, y);
     y += 4;
@@ -149,10 +220,7 @@ export const exportReportPdf = async ({
   }
 
   if (topProducts.length > 0) {
-    if (y > 240) {
-      doc.addPage();
-      y = margin;
-    }
+    ensureSpace();
     doc.setFontSize(12);
     doc.text('Top productos', margin, y);
     y += 4;
@@ -171,10 +239,7 @@ export const exportReportPdf = async ({
   }
 
   if (salesByUser.length > 0) {
-    if (y > 240) {
-      doc.addPage();
-      y = margin;
-    }
+    ensureSpace();
     doc.setFontSize(12);
     doc.text('Ventas por vendedor', margin, y);
     y += 4;
@@ -188,6 +253,60 @@ export const exportReportPdf = async ({
       ]),
       styles: { fontSize: 8 },
       headStyles: { fillColor: [51, 65, 85] },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  if (expenses?.por_dia?.length > 0) {
+    ensureSpace();
+    doc.setFontSize(12);
+    doc.text('Egresos por día', margin, y);
+    y += 4;
+    autoTable(doc, {
+      startY: y,
+      head: [['Fecha', 'Cant.', 'Total']],
+      body: expenses.por_dia.map((d) => [
+        formatDateOnly(d.fecha),
+        String(d.cantidad),
+        formatCurrency(d.total),
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [185, 28, 28] },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  if (expenses?.detalle?.length > 0) {
+    ensureSpace();
+    doc.setFontSize(12);
+    doc.text('Detalle de egresos', margin, y);
+    y += 4;
+    autoTable(doc, {
+      startY: y,
+      head: [['Fecha', 'Descripción', 'Método', 'Monto']],
+      body: expenses.detalle.slice(0, 40).map((e) => [
+        formatDateOnly(e.fecha),
+        e.descripcion,
+        e.metodo_pago_nombre,
+        formatCurrency(e.monto),
+      ]),
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [185, 28, 28] },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  if (resultado?.desglose?.length > 0) {
+    ensureSpace();
+    doc.setFontSize(12);
+    doc.text('Resultado neto', margin, y);
+    y += 4;
+    autoTable(doc, {
+      startY: y,
+      head: [['Concepto', 'Monto']],
+      body: resultado.desglose.map((r) => [r.concepto, formatCurrency(r.monto)]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [15, 23, 42] },
     });
     y = doc.lastAutoTable.finalY + 8;
   }

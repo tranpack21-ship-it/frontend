@@ -21,4 +21,12 @@ export const reportService = {
     const { data } = await api.get('/reports/sales-by-user', { params });
     return data.data.datos;
   },
+  expenses: async (params) => {
+    const { data } = await api.get('/reports/expenses', { params });
+    return data.data.reporte;
+  },
+  resultado: async (params) => {
+    const { data } = await api.get('/reports/resultado', { params });
+    return data.data.reporte;
+  },
 };
