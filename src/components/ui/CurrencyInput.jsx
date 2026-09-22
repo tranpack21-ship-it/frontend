@@ -3,9 +3,12 @@ import { fieldBase, fieldSizes, fieldError, fieldNormal } from './fieldStyles';
 import {
   formatCurrencyInputString,
   numberToCurrencyInputString,
+  numberToCurrencyEditString,
+  normalizePastedCurrency,
   parseCurrencyInput,
   clampCurrencyValue,
 } from '../../utils/currencyInput';
+import { selectAllOnFocus } from '../../utils/decimalInput';
 
 export const CurrencyInput = forwardRef(function CurrencyInput(
   {
@@ -28,6 +31,7 @@ export const CurrencyInput = forwardRef(function CurrencyInput(
     prefix = '$',
     disabled = false,
     placeholder = '0',
+    selectOnFocus = true,
     ...rest
   },
   ref
@@ -56,11 +60,12 @@ export const CurrencyInput = forwardRef(function CurrencyInput(
   const emitChange = (rawDisplay) => {
     const parsed = parseCurrencyInput(rawDisplay);
     if (parsed === null) {
-      if (allowEmpty && (rawDisplay === '' || rawDisplay === '0,')) {
+      if (allowEmpty && (rawDisplay === '' || rawDisplay === '0,' || rawDisplay === ',')) {
         onChange?.(null);
-      } else if (rawDisplay === '' || rawDisplay === '0,') {
+      } else if (rawDisplay === '' || rawDisplay === '0,' || rawDisplay === ',') {
         onChange?.(0);
       }
+      // "123," u otros incompletos: no emitir hasta tener número parseable
       return;
     }
     const clamped = clampCurrencyValue(parsed, { min, max });
@@ -69,11 +74,14 @@ export const CurrencyInput = forwardRef(function CurrencyInput(
 
   const handleFocus = (e) => {
     focusedRef.current = true;
+    // Quitar puntos de miles al editar para poder borrar/escribir sin ambigüedad
+    setDisplay(numberToCurrencyEditString(value, { decimals, emptyZero }));
+    if (selectOnFocus) selectAllOnFocus(inputRef.current ?? e.target);
     rest.onFocus?.(e);
   };
 
   const handleChange = (e) => {
-    const formatted = formatCurrencyInputString(e.target.value);
+    const formatted = formatCurrencyInputString(e.target.value, { maxDecimals: decimals });
     setDisplay(formatted);
     emitChange(formatted);
   };
@@ -101,8 +109,8 @@ export const CurrencyInput = forwardRef(function CurrencyInput(
 
   const handlePaste = (e) => {
     e.preventDefault();
-    const text = e.clipboardData.getData('text');
-    const formatted = formatCurrencyInputString(text);
+    const text = normalizePastedCurrency(e.clipboardData.getData('text'));
+    const formatted = formatCurrencyInputString(text, { maxDecimals: decimals });
     setDisplay(formatted);
     emitChange(formatted);
   };
