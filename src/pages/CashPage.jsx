@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Wallet, Plus, Lock, Unlock, History, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { cashService } from '../services/cashService';
+import { cashConceptService } from '../services/cashConceptService';
 import { usePaymentMethods } from '../hooks/usePaymentMethods';
 import { usePermissions } from '../hooks/usePermissions';
 import { PERMISSIONS } from '../constants/permissions';
@@ -45,14 +46,59 @@ export const CashPage = () => {
   const [efectivoModal, setEfectivoModal] = useState(false);
   const [montoApertura, setMontoApertura] = useState(0);
   const [montoCierre, setMontoCierre] = useState(0);
-  const [movTipo, setMovTipo] = useState('ingreso');
+  const [movTipo, setMovTipo] = useState('egreso');
   const [movMonto, setMovMonto] = useState(0);
   const [movMetodo, setMovMetodo] = useState('efectivo');
-  const [movDesc, setMovDesc] = useState('');
+  const [movConcepto, setMovConcepto] = useState('');
+  const [movDetalle, setMovDetalle] = useState('');
+  const [concepts, setConcepts] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
   const sessionId = detail?.sesion?.id;
   const listParams = useMemo(() => ({ sessionId }), [sessionId]);
+
+  const conceptoOptions = useMemo(() => {
+    const filtered = concepts.filter(
+      (c) => c.tipo === movTipo || c.tipo === 'ambos'
+    );
+    return [
+      { value: '', label: 'Seleccionar descripción…' },
+      ...filtered.map((c) => ({ value: c.nombre, label: c.nombre })),
+      { value: '__otro__', label: 'Otro (escribir manualmente)' },
+    ];
+  }, [concepts, movTipo]);
+
+  useEffect(() => {
+    let cancelled = false;
+    cashConceptService
+      .list({ activos: true })
+      .then((data) => {
+        if (!cancelled) {
+          const list = Array.isArray(data) ? data : [];
+          setConcepts(list);
+          if (list.length === 0) setMovConcepto('__otro__');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setConcepts([]);
+          setMovConcepto('__otro__');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (movConcepto && movConcepto !== '__otro__') {
+      const stillValid = concepts.some(
+        (c) =>
+          c.nombre === movConcepto && (c.tipo === movTipo || c.tipo === 'ambos')
+      );
+      if (!stillValid) setMovConcepto('');
+    }
+  }, [movTipo, concepts, movConcepto]);
 
   const {
     items: movements,
@@ -138,18 +184,35 @@ export const CashPage = () => {
 
   const handleMovement = async () => {
     if (!sesion) return;
+
+    let descripcion = '';
+    if (movConcepto === '__otro__') {
+      descripcion = movDetalle.trim();
+    } else if (movConcepto) {
+      descripcion = movDetalle.trim()
+        ? `${movConcepto} — ${movDetalle.trim()}`
+        : movConcepto;
+    }
+
+    if (!descripcion) {
+      setError('Seleccione una descripción para el movimiento');
+      return;
+    }
+
     setSubmitting(true);
+    setError('');
     try {
       await cashService.addMovement(sesion.id, {
         tipo: movTipo,
         monto: movMonto,
         metodo_pago: movMetodo,
-        descripcion: movDesc || null,
+        descripcion,
       });
       setSuccess('Movimiento registrado');
       setMoveModal(false);
       setMovMonto(0);
-      setMovDesc('');
+      setMovConcepto('');
+      setMovDetalle('');
       await load();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -338,8 +401,8 @@ export const CashPage = () => {
             value={movTipo}
             onChange={(e) => setMovTipo(e.target.value)}
             options={[
-              { value: 'ingreso', label: 'Ingreso' },
               { value: 'egreso', label: 'Egreso' },
+              { value: 'ingreso', label: 'Ingreso' },
             ]}
           />
           <Select
@@ -356,12 +419,36 @@ export const CashPage = () => {
             value={movMonto}
             onChange={setMovMonto}
           />
-          <Input
-            id="mov-desc"
+          <Select
+            id="mov-concepto"
             label="Descripción"
-            value={movDesc}
-            onChange={(e) => setMovDesc(e.target.value)}
+            value={movConcepto}
+            onChange={(e) => setMovConcepto(e.target.value)}
+            options={conceptoOptions}
           />
+          {(movConcepto === '__otro__' || movConcepto) && (
+            <Input
+              id="mov-detalle"
+              label={
+                movConcepto === '__otro__'
+                  ? 'Escriba la descripción'
+                  : 'Detalle opcional'
+              }
+              placeholder={
+                movConcepto === '__otro__'
+                  ? 'Ej: Pago proveedor Juan'
+                  : 'Nota adicional (opcional)'
+              }
+              value={movDetalle}
+              onChange={(e) => setMovDetalle(e.target.value)}
+            />
+          )}
+          {concepts.length === 0 && (
+            <p className="text-xs text-amber-700">
+              No hay conceptos cargados. Puede escribir uno manual o configurarlos en
+              Configuración → Conceptos de caja.
+            </p>
+          )}
           <p className="text-xs text-slate-500">
             Solo el efectivo físico afecta el arqueo del cajón. Otros métodos quedan en el detalle de
             ingresos.

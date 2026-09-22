@@ -39,6 +39,8 @@ export const PERMISSIONS = {
   AUDITORIA_VER: 'auditoria.ver',
   METODOS_PAGO_VER: 'metodos_pago.ver',
   METODOS_PAGO_GESTIONAR: 'metodos_pago.gestionar',
+  CAJA_CONCEPTOS_VER: 'caja_conceptos.ver',
+  CAJA_CONCEPTOS_GESTIONAR: 'caja_conceptos.gestionar',
 };
 
 export const ROLES = { ADMIN: 'admin', EMPLEADO: 'empleado' };
@@ -51,6 +53,7 @@ export const CONFIG_ACCESS_PERMISSIONS = [
   PERMISSIONS.PERMISOS_VER,
   PERMISSIONS.PERMISOS_ASIGNAR,
   PERMISSIONS.METODOS_PAGO_GESTIONAR,
+  PERMISSIONS.CAJA_CONCEPTOS_GESTIONAR,
 ];
 
 export const CATALOGO_ACCESS_PERMISSIONS = [
@@ -188,6 +191,8 @@ export const PERMISSION_LABELS = {
   [PERMISSIONS.AUDITORIA_VER]: 'Ver auditoría',
   [PERMISSIONS.METODOS_PAGO_VER]: 'Ver métodos de pago',
   [PERMISSIONS.METODOS_PAGO_GESTIONAR]: 'Configurar métodos de pago',
+  [PERMISSIONS.CAJA_CONCEPTOS_VER]: 'Ver conceptos de caja',
+  [PERMISSIONS.CAJA_CONCEPTOS_GESTIONAR]: 'Configurar conceptos de caja',
 };
 
 export const PERMISSION_GROUPS = [
@@ -211,6 +216,11 @@ export const PERMISSION_GROUPS = [
     modulo: 'metodos_pago',
     titulo: 'Métodos de pago',
     permisos: [PERMISSIONS.METODOS_PAGO_VER, PERMISSIONS.METODOS_PAGO_GESTIONAR],
+  },
+  {
+    modulo: 'caja_conceptos',
+    titulo: 'Conceptos de caja',
+    permisos: [PERMISSIONS.CAJA_CONCEPTOS_VER, PERMISSIONS.CAJA_CONCEPTOS_GESTIONAR],
   },
   {
     modulo: 'categorias',

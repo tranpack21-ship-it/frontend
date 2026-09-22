@@ -17,8 +17,10 @@ import {
   PiggyBank,
 } from 'lucide-react';
 import { reportService } from '../services/reportService';
+import { cashConceptService } from '../services/cashConceptService';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { Select } from '../components/ui/Select';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
 import { EmptyState } from '../components/common/EmptyState';
@@ -106,6 +108,23 @@ export const ReportsPage = () => {
   const [expenses, setExpenses] = useState(null);
   const [resultado, setResultado] = useState(null);
   const [exporting, setExporting] = useState(null);
+  const [expenseDescFilter, setExpenseDescFilter] = useState('');
+  const [expenseConcepts, setExpenseConcepts] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    cashConceptService
+      .list({ activos: true, tipo: 'egreso' })
+      .then((data) => {
+        if (!cancelled) setExpenseConcepts(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setExpenseConcepts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loadReports = useCallback(async () => {
     if (!isValidDateRange(fechaDesde, fechaHasta)) {
@@ -114,6 +133,10 @@ export const ReportsPage = () => {
     }
 
     const params = { fecha_desde: fechaDesde, fecha_hasta: fechaHasta };
+    const expenseParams = {
+      ...params,
+      ...(expenseDescFilter ? { descripcion: expenseDescFilter } : {}),
+    };
     setLoading(true);
     setError('');
     try {
@@ -123,7 +146,7 @@ export const ReportsPage = () => {
         reportService.topProducts({ ...params, limit: 8 }),
         reportService.lowStock(),
         reportService.salesByUser(params),
-        reportService.expenses(params),
+        reportService.expenses(expenseParams),
         reportService.resultado(params),
       ]);
       setDashboard(dash);
@@ -138,7 +161,7 @@ export const ReportsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [fechaDesde, fechaHasta]);
+  }, [fechaDesde, fechaHasta, expenseDescFilter]);
 
   useEffect(() => {
     loadReports();
@@ -154,6 +177,35 @@ export const ReportsPage = () => {
   const maxDayTotal = Math.max(...salesByDay.map((d) => d.total), 1);
   const maxUserTotal = Math.max(...salesByUser.map((u) => u.total), 1);
   const maxExpenseDay = Math.max(...(expenses?.por_dia?.map((d) => d.total) || [0]), 1);
+  const maxExpenseDesc = Math.max(
+    ...(expenses?.por_descripcion?.map((d) => d.total) || [0]),
+    1
+  );
+
+  const expenseConceptOptions = (() => {
+    const opts = [{ value: '', label: 'Todas las descripciones' }];
+    const seen = new Set(['']);
+    for (const c of expenseConcepts) {
+      if (!seen.has(c.nombre)) {
+        seen.add(c.nombre);
+        opts.push({ value: c.nombre, label: c.nombre });
+      }
+    }
+    for (const d of expenses?.por_descripcion || []) {
+      if (
+        d.descripcion &&
+        d.descripcion !== 'Sin descripción' &&
+        !seen.has(d.descripcion)
+      ) {
+        seen.add(d.descripcion);
+        opts.push({
+          value: d.descripcion,
+          label: `${d.descripcion} (histórico)`,
+        });
+      }
+    }
+    return opts;
+  })();
 
   const exportPayload = {
     fechaDesde,
@@ -501,6 +553,34 @@ export const ReportsPage = () => {
 
           {tab === 'egresos' && expenses && (
             <>
+              <Card className="!p-4">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                  <div className="flex-1 min-w-0">
+                    <Select
+                      id="filtro-egreso-desc"
+                      label="Filtrar por descripción"
+                      value={expenseDescFilter}
+                      onChange={(e) => setExpenseDescFilter(e.target.value)}
+                      options={expenseConceptOptions}
+                    />
+                  </div>
+                  {expenseDescFilter && (
+                    <Button
+                      variant="outline"
+                      className="h-11 shrink-0"
+                      onClick={() => setExpenseDescFilter('')}
+                    >
+                      Limpiar filtro
+                    </Button>
+                  )}
+                </div>
+                {expenseDescFilter && (
+                  <p className="text-xs text-slate-500 mt-2">
+                    Mostrando solo egresos de «{expenseDescFilter}»
+                  </p>
+                )}
+              </Card>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <KpiCard
                   icon={ArrowDownCircle}
@@ -552,6 +632,31 @@ export const ReportsPage = () => {
                   </div>
                 </Card>
 
+                <Card className="!p-0 overflow-hidden">
+                  <SectionHeader
+                    icon={ArrowDownCircle}
+                    title="Egresos por descripción"
+                    subtitle="Totales por concepto"
+                  />
+                  <div className="px-4 sm:px-6 pb-6">
+                    {(expenses.por_descripcion || []).length === 0 ? (
+                      <EmptyState title="Sin datos" description="Sin egresos en el período" />
+                    ) : (
+                      <BarList
+                        items={expenses.por_descripcion}
+                        getKey={(d) => d.descripcion}
+                        getLabel={(d) => d.descripcion}
+                        getValue={(d) => d.total}
+                        getMeta={(d) => `(${d.cantidad})`}
+                        maxValue={maxExpenseDesc}
+                        barClass="bg-amber-500"
+                      />
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <Card className="!p-0 overflow-hidden">
                   <SectionHeader
                     icon={Wallet}

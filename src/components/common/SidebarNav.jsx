@@ -74,6 +74,7 @@ export const SidebarNav = ({ onNavigate }) => {
     PERMISSIONS.PERMISOS_ASIGNAR
   );
   const showPaymentMethods = hasPermission(PERMISSIONS.METODOS_PAGO_GESTIONAR);
+  const showCashConcepts = hasPermission(PERMISSIONS.CAJA_CONCEPTOS_GESTIONAR);
   const showCategories = hasPermission(
     PERMISSIONS.CATEGORIAS_VER,
     PERMISSIONS.CATEGORIAS_CREAR,
@@ -360,6 +361,16 @@ export const SidebarNav = ({ onNavigate }) => {
                 >
                   <CreditCard className="w-4 h-4 shrink-0" />
                   Métodos de pago
+                </NavLink>
+              )}
+              {showCashConcepts && (
+                <NavLink
+                  to="/configuracion/conceptos-caja"
+                  className={subLinkClass}
+                  onClick={handleClick}
+                >
+                  <Tags className="w-4 h-4 shrink-0" />
+                  Conceptos de caja
                 </NavLink>
               )}
             </div>

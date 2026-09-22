@@ -106,6 +106,11 @@ export const exportReportExcel = async ({
     ...(expenses?.por_dia || []).map((d) => [d.fecha, d.cantidad, d.total]),
   ];
 
+  const egresosPorDesc = [
+    ['Descripción', 'Cantidad', 'Total'],
+    ...(expenses?.por_descripcion || []).map((d) => [d.descripcion, d.cantidad, d.total]),
+  ];
+
   const egresosDetalle = [
     ['Fecha', 'Descripción', 'Método', 'Usuario', 'Monto'],
     ...(expenses?.detalle || []).map((e) => [
@@ -138,6 +143,11 @@ export const exportReportExcel = async ({
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(stockBajo), 'Stock bajo');
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(egresosResumen), 'Egresos');
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(egresosDia), 'Egresos por día');
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.aoa_to_sheet(egresosPorDesc),
+    'Egresos por concepto'
+  );
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(egresosDetalle), 'Detalle egresos');
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(resultadoSheet), 'Resultado neto');
 
