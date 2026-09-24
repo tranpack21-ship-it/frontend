@@ -41,4 +41,8 @@ export const cashService = {
     const { data } = await api.post(`/cash/${id}/movements`, payload);
     return data.data.sesion;
   },
+  updateMovement: async (sessionId, movementId, payload) => {
+    const { data } = await api.patch(`/cash/${sessionId}/movements/${movementId}`, payload);
+    return data.data;
+  },
 };

@@ -3,6 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Wallet } from 'lucide-react';
 import { cashService } from '../services/cashService';
 import { usePaginatedList } from '../hooks/usePaginatedList';
+import { usePaymentMethods } from '../hooks/usePaymentMethods';
+import { usePermissions } from '../hooks/usePermissions';
+import { PERMISSIONS } from '../constants/permissions';
 import { Card } from '../components/ui/Card';
 import { Spinner } from '../components/ui/Spinner';
 import { Alert } from '../components/ui/Alert';
@@ -12,17 +15,25 @@ import { CashSummaryCards } from '../components/cash/CashSummaryCards';
 import { CashIncomeBreakdownModal } from '../components/cash/CashIncomeBreakdownModal';
 import { CashEfectivoBreakdownModal } from '../components/cash/CashEfectivoBreakdownModal';
 import { CashMovementsTable } from '../components/cash/CashMovementsTable';
+import { EditCashMovementMethodModal } from '../components/cash/EditCashMovementMethodModal';
 import { formatDate } from '../utils/formatDate';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getErrorMessage } from '../utils/getErrorMessage';
 
 export const CashSessionDetailPage = () => {
   const { id } = useParams();
+  const { hasPermission } = usePermissions();
+  const canMove = hasPermission(PERMISSIONS.CAJA_MOVIMIENTO);
+  const { methods: paymentMethods } = usePaymentMethods({ activos: true });
+
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [incomeModal, setIncomeModal] = useState(false);
   const [efectivoModal, setEfectivoModal] = useState(false);
+  const [editMethodMov, setEditMethodMov] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const listParams = useMemo(() => ({ sessionId: id }), [id]);
 
@@ -33,6 +44,7 @@ export const CashSessionDetailPage = () => {
     error: listError,
     setPage,
     setLimit,
+    refresh: refreshMovements,
   } = usePaginatedList({
     queryFn: async ({ page, limit }) => {
       const { movements: data, pagination: pag } = await cashService.movements(id, {
@@ -51,19 +63,47 @@ export const CashSessionDetailPage = () => {
     try {
       const data = await cashService.getDetail(id);
       setDetail(data);
+      refreshMovements();
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
       setDetailLoading(false);
     }
-  }, [id]);
+  }, [id, refreshMovements]);
 
   useEffect(() => {
     loadDetail();
   }, [loadDetail]);
 
+  useEffect(() => {
+    if (!success) return undefined;
+    const t = setTimeout(() => setSuccess(''), 4000);
+    return () => clearTimeout(t);
+  }, [success]);
+
   const sesion = detail?.sesion;
   const resumen = detail?.resumen;
+  const canEditMethods = canMove && sesion?.estado === 'abierta';
+
+  const handleUpdateMethod = async (metodoPago) => {
+    if (!sesion || !editMethodMov) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await cashService.updateMovement(sesion.id, editMethodMov.id, {
+        metodo_pago: metodoPago,
+      });
+      setSuccess('Método de pago actualizado');
+      setEditMethodMov(null);
+      await loadDetail();
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (detailLoading && !detail) return <Spinner />;
 
@@ -90,6 +130,7 @@ export const CashSessionDetailPage = () => {
       </div>
 
       {(error || listError) && <Alert>{error || listError}</Alert>}
+      {success && <Alert variant="success">{success}</Alert>}
 
       {sesion && resumen && (
         <>
@@ -146,7 +187,11 @@ export const CashSessionDetailPage = () => {
               </div>
             ) : (
               <>
-                <CashMovementsTable movements={movements} />
+                <CashMovementsTable
+                  movements={movements}
+                  canEdit={canEditMethods}
+                  onEditMethod={setEditMethodMov}
+                />
                 <Pagination
                   page={pagination.page}
                   limit={pagination.limit}
@@ -172,6 +217,15 @@ export const CashSessionDetailPage = () => {
         isOpen={efectivoModal}
         onClose={() => setEfectivoModal(false)}
         resumen={resumen}
+      />
+
+      <EditCashMovementMethodModal
+        isOpen={Boolean(editMethodMov)}
+        onClose={() => setEditMethodMov(null)}
+        movement={editMethodMov}
+        paymentMethods={paymentMethods}
+        onSubmit={handleUpdateMethod}
+        submitting={submitting}
       />
     </div>
   );

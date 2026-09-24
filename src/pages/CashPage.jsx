@@ -22,6 +22,7 @@ import { CashSummaryCards } from '../components/cash/CashSummaryCards';
 import { CashIncomeBreakdownModal } from '../components/cash/CashIncomeBreakdownModal';
 import { CashEfectivoBreakdownModal } from '../components/cash/CashEfectivoBreakdownModal';
 import { CashMovementsTable } from '../components/cash/CashMovementsTable';
+import { EditCashMovementMethodModal } from '../components/cash/EditCashMovementMethodModal';
 import { formatDate } from '../utils/formatDate';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getErrorMessage } from '../utils/getErrorMessage';
@@ -44,6 +45,7 @@ export const CashPage = () => {
   const [moveModal, setMoveModal] = useState(false);
   const [incomeModal, setIncomeModal] = useState(false);
   const [efectivoModal, setEfectivoModal] = useState(false);
+  const [editMethodMov, setEditMethodMov] = useState(null);
   const [montoApertura, setMontoApertura] = useState(0);
   const [montoCierre, setMontoCierre] = useState(0);
   const [movTipo, setMovTipo] = useState('egreso');
@@ -221,6 +223,26 @@ export const CashPage = () => {
     }
   };
 
+  const handleUpdateMethod = async (metodoPago) => {
+    if (!sesion || !editMethodMov) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await cashService.updateMovement(sesion.id, editMethodMov.id, {
+        metodo_pago: metodoPago,
+      });
+      setSuccess('Método de pago actualizado');
+      setEditMethodMov(null);
+      await load();
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading && !detail) return <Spinner />;
 
   return (
@@ -323,7 +345,11 @@ export const CashPage = () => {
               </div>
             ) : (
               <>
-                <CashMovementsTable movements={movements} />
+                <CashMovementsTable
+                  movements={movements}
+                  canEdit={canMove}
+                  onEditMethod={setEditMethodMov}
+                />
                 <Pagination
                   page={pagination.page}
                   limit={pagination.limit}
@@ -458,6 +484,15 @@ export const CashPage = () => {
           </Button>
         </div>
       </Modal>
+
+      <EditCashMovementMethodModal
+        isOpen={Boolean(editMethodMov)}
+        onClose={() => setEditMethodMov(null)}
+        movement={editMethodMov}
+        paymentMethods={paymentMethods}
+        onSubmit={handleUpdateMethod}
+        submitting={submitting}
+      />
     </div>
   );
 };
